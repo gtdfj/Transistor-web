@@ -1,0 +1,5 @@
+{
+  "name": "Transistor Radio",
+  "description": "A minimalist, focused internet radio player following Material Design 3 guidelines. Features station searching, manual stream entry, sleep timer, and M3U export/import.",
+  "requestFramePermissions": []
+}
