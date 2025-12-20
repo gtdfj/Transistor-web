@@ -15,7 +15,7 @@ interface Station {
 
 type ViewState = 'LIST' | 'ADD' | 'SETTINGS' | 'FULL_PLAYER';
 
-type ThemeColor = 'purple' | 'blue' | 'green' | 'red' | 'orange';
+type ThemeColor = 'purple' | 'blue' | 'green' | 'red' | 'orange' | 'black';
 
 interface AppSettings {
   theme: 'light' | 'dark' | 'system';
@@ -39,12 +39,13 @@ interface RadioBrowserStation {
 }
 
 // --- Constants ---
-const THEME_PALETTES: Record<ThemeColor, { primary: string, container: string, onContainer: string, active: string, surface: string }> = {
-  purple: { primary: '#6750A4', container: '#EADDFF', onContainer: '#21005D', active: '#D0BCFF', surface: '#F7F2FA' },
-  blue: { primary: '#0061A4', container: '#D1E4FF', onContainer: '#001D36', active: '#A1C9FF', surface: '#F8FBFF' },
-  green: { primary: '#006D32', container: '#98FB9D', onContainer: '#00210A', active: '#7CFF9A', surface: '#F7FFF7' },
-  red: { primary: '#BA1A1A', container: '#FFDAD6', onContainer: '#410002', active: '#FFB4AB', surface: '#FFF8F7' },
-  orange: { primary: '#8B5000', container: '#FFDDB3', onContainer: '#2C1600', active: '#FFB870', surface: '#FFF8F2' },
+const THEME_PALETTES: Record<ThemeColor, { primary: string, container: string, onContainer: string, active: string, surface: string, border: string, textSecondary: string }> = {
+  purple: { primary: '#6750A4', container: '#EADDFF', onContainer: '#21005D', active: '#D0BCFF', surface: '#F7F2FA', border: '#E7E0EC', textSecondary: '#49454F' },
+  blue: { primary: '#0061A4', container: '#D1E4FF', onContainer: '#001D36', active: '#A1C9FF', surface: '#F8FBFF', border: '#D1E4FF', textSecondary: '#49454F' },
+  green: { primary: '#006D32', container: '#98FB9D', onContainer: '#00210A', active: '#7CFF9A', surface: '#F7FFF7', border: '#C0EED2', textSecondary: '#49454F' },
+  red: { primary: '#BA1A1A', container: '#FFDAD6', onContainer: '#410002', active: '#FFB4AB', surface: '#FFF8F7', border: '#FFDAD6', textSecondary: '#49454F' },
+  orange: { primary: '#8B5000', container: '#FFDDB3', onContainer: '#2C1600', active: '#FFB870', surface: '#FFF8F2', border: '#FFDDB3', textSecondary: '#49454F' },
+  black: { primary: '#FFFFFF', container: '#1C1B1F', onContainer: '#E6E1E5', active: '#FFFFFF', surface: '#000000', border: '#313033', textSecondary: '#CAC4D0' },
 };
 
 // --- Icons ---
@@ -222,16 +223,28 @@ const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Station[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  
+  // System Dark Mode Detection
+  const [isSystemDark, setIsSystemDark] = useState(
+    window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+  );
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const sleepTimerRef = useRef<number | null>(null);
 
-  // Persistence
+  // Persistence & Dark Mode Listener
   useEffect(() => {
     const savedStations = localStorage.getItem('transistor_stations');
     if (savedStations) setStations(JSON.parse(savedStations));
     const savedSettings = localStorage.getItem('transistor_settings');
     if (savedSettings) setSettings(p => ({ ...p, ...JSON.parse(savedSettings) }));
+
+    const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleDarkModeChange = (e: MediaQueryListEvent) => {
+      setIsSystemDark(e.matches);
+    };
+    darkModeMediaQuery.addEventListener('change', handleDarkModeChange);
+    return () => darkModeMediaQuery.removeEventListener('change', handleDarkModeChange);
   }, []);
 
   useEffect(() => {
@@ -413,18 +426,19 @@ const App: React.FC = () => {
     }
   };
 
-  const activePalette = THEME_PALETTES[settings.themeColor];
+  // Resolve palette - automatic switch to black if system is dark
+  const activePalette = isSystemDark ? THEME_PALETTES['black'] : THEME_PALETTES[settings.themeColor];
 
   // --- Sub-components ---
   const Header = () => (
-    <div className="sticky top-0 z-20 flex items-center justify-between px-4 h-16 bg-theme-surface border-b border-[#E7E0EC] transition-colors duration-500">
+    <div className="sticky top-0 z-20 flex items-center justify-between px-4 h-16 bg-theme-surface border-b border-theme-border transition-colors duration-500">
       <div className="flex items-center gap-4">
         {currentView !== 'LIST' && (
           <button onClick={() => setCurrentView('LIST')} className="p-2 rounded-full hover:bg-black/5">
             <Icons.ChevronLeft className="w-6 h-6" />
           </button>
         )}
-        <h1 className="text-xl font-medium tracking-tight">
+        <h1 className="text-xl font-medium tracking-tight text-theme-primary">
           {currentView === 'LIST' ? 'Transistor' : 
            currentView === 'ADD' ? '添加电台' : 
            currentView === 'SETTINGS' ? '设置' : '正在播放'}
@@ -436,7 +450,7 @@ const App: React.FC = () => {
             <button onClick={() => setCurrentView('ADD')} className="p-3 rounded-full hover:bg-black/5 text-theme-primary transition-colors">
               <Icons.Plus className="w-6 h-6" />
             </button>
-            <button onClick={() => setCurrentView('SETTINGS')} className="p-3 rounded-full hover:bg-black/5">
+            <button onClick={() => setCurrentView('SETTINGS')} className="p-3 rounded-full hover:bg-black/5 text-theme-primary transition-colors">
               <Icons.Settings className="w-6 h-6" />
             </button>
           </>
@@ -455,14 +469,14 @@ const App: React.FC = () => {
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <h3 className="text-base font-medium truncate flex items-center gap-2">
+        <h3 className="text-base font-medium truncate flex items-center gap-2 text-theme-primary">
           {station.name}
           {station.isFavorite && <Icons.Star className="w-3 h-3 text-theme-primary fill-current transition-colors" active={true} />}
         </h3>
-        {settings.showStreamUrl && <p className="text-sm text-[#49454F] truncate">{station.url}</p>}
+        {settings.showStreamUrl && <p className="text-sm text-theme-textSecondary truncate">{station.url}</p>}
       </div>
       <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-        <button onClick={() => toggleFavorite(station.id)} className={`p-2 rounded-full hover:bg-black/5 transition-colors ${station.isFavorite ? 'text-theme-primary' : 'text-[#49454F]'}`}>
+        <button onClick={() => toggleFavorite(station.id)} className={`p-2 rounded-full hover:bg-black/5 transition-colors ${station.isFavorite ? 'text-theme-primary' : 'text-theme-textSecondary'}`}>
           <Icons.Star className="w-5 h-5" active={station.isFavorite} />
         </button>
         <button onClick={() => togglePlay(station)} className="p-2 rounded-full hover:bg-black/5 text-theme-primary transition-colors">
@@ -477,15 +491,15 @@ const App: React.FC = () => {
     const durations = [15, 30, 45, 60, 90, 120];
     return (
       <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setIsTimerDialogOpen(false)}>
-        <div className="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl animate-slide-up sm:animate-none" onClick={e => e.stopPropagation()}>
+        <div className="bg-theme-surface w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl animate-slide-up sm:animate-none border border-theme-border" onClick={e => e.stopPropagation()}>
           <div className="p-6">
-            <h3 className="text-lg font-medium mb-4">设置睡眠定时器</h3>
+            <h3 className="text-lg font-medium mb-4 text-theme-primary">设置睡眠定时器</h3>
             <div className="grid grid-cols-3 gap-3">
               {durations.map(d => (
                 <button 
                   key={d} 
                   onClick={() => { setSleepTimer(d); setIsTimerDialogOpen(false); }}
-                  className={`py-3 px-4 rounded-xl text-sm font-medium transition-colors ${sleepTimer === d ? 'bg-theme-primary text-white' : 'bg-[#ECE6F0] text-[#1C1B1F] hover:bg-[#E7E0EC]'}`}
+                  className={`py-3 px-4 rounded-xl text-sm font-medium transition-colors ${sleepTimer === d ? 'bg-theme-primary text-theme-surface' : 'bg-theme-container text-theme-onContainer hover:opacity-80'}`}
                 >
                   {d} 分钟
                 </button>
@@ -514,17 +528,17 @@ const App: React.FC = () => {
   const MiniPlayer = () => {
     if (!activeStation) return null;
     return (
-      <div className="fixed bottom-0 left-0 right-0 bg-[#211F26] text-white p-3 flex items-center justify-between z-30 cursor-pointer shadow-lg" onClick={() => setCurrentView('FULL_PLAYER')}>
+      <div className="fixed bottom-0 left-0 right-0 bg-theme-container text-theme-onContainer p-3 flex items-center justify-between z-30 cursor-pointer shadow-lg transition-colors duration-500" onClick={() => setCurrentView('FULL_PLAYER')}>
         <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div className="w-10 h-10 bg-[#49454F] rounded-full flex items-center justify-center overflow-hidden">
+          <div className="w-10 h-10 bg-theme-border rounded-full flex items-center justify-center overflow-hidden">
             {activeStation.iconUrl ? <img src={activeStation.iconUrl} className="w-full h-full object-cover" alt="" /> : <Icons.Radio className="w-5 h-5" />}
           </div>
           <div className="flex flex-col min-w-0">
             <span className="text-sm font-medium truncate">{activeStation.name}</span>
             <div className="flex items-center gap-1.5">
-              <span className="text-xs text-white/70">{isLoading ? '加载中...' : (isPlaying ? '正在播放' : '已暂停')}</span>
+              <span className="text-xs opacity-70">{isLoading ? '加载中...' : (isPlaying ? '正在播放' : '已暂停')}</span>
               {sleepTimer && (
-                <span className="text-[10px] bg-theme-active text-theme-onContainer px-1.5 rounded-full font-bold transition-colors">
+                <span className="text-[10px] bg-theme-primary text-theme-surface px-1.5 rounded-full font-bold transition-colors">
                   {sleepTimer}m
                 </span>
               )}
@@ -533,9 +547,9 @@ const App: React.FC = () => {
         </div>
         <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
           <button onClick={() => setIsTimerDialogOpen(true)} className="p-2">
-            <Icons.Timer className={`w-6 h-6 transition-colors ${sleepTimer ? 'text-theme-active' : 'text-white/70'}`} />
+            <Icons.Timer className={`w-6 h-6 transition-colors ${sleepTimer ? 'text-theme-primary' : 'opacity-50'}`} />
           </button>
-          <button onClick={() => togglePlay()} className="p-2 bg-theme-active text-theme-onContainer rounded-full transition-colors">
+          <button onClick={() => togglePlay()} className="p-2 bg-theme-primary text-theme-surface rounded-full transition-colors">
             {isPlaying ? <Icons.Pause className="w-6 h-6" /> : <Icons.Play className="w-6 h-6" />}
           </button>
         </div>
@@ -598,28 +612,28 @@ const App: React.FC = () => {
 
     return (
       <div className="p-4 space-y-6 pb-24">
-        <div className="flex bg-[#E7E0EC] rounded-full p-1 transition-colors">
-          <button className={`flex-1 py-2 rounded-full text-sm font-medium transition-all ${tab === 'search' ? 'bg-white shadow-sm' : ''}`} onClick={() => setTab('search')}>搜索</button>
-          <button className={`flex-1 py-2 rounded-full text-sm font-medium transition-all ${tab === 'manual' ? 'bg-white shadow-sm' : ''}`} onClick={() => setTab('manual')}>手动</button>
-          <button className={`flex-1 py-2 rounded-full text-sm font-medium transition-all ${tab === 'import' ? 'bg-white shadow-sm' : ''}`} onClick={() => setTab('import')}>导入</button>
+        <div className="flex bg-theme-container rounded-full p-1 transition-colors">
+          <button className={`flex-1 py-2 rounded-full text-sm font-medium transition-all ${tab === 'search' ? 'bg-theme-surface shadow-sm text-theme-primary' : 'text-theme-onContainer'}`} onClick={() => setTab('search')}>搜索</button>
+          <button className={`flex-1 py-2 rounded-full text-sm font-medium transition-all ${tab === 'manual' ? 'bg-theme-surface shadow-sm text-theme-primary' : 'text-theme-onContainer'}`} onClick={() => setTab('manual')}>手动</button>
+          <button className={`flex-1 py-2 rounded-full text-sm font-medium transition-all ${tab === 'import' ? 'bg-theme-surface shadow-sm text-theme-primary' : 'text-theme-onContainer'}`} onClick={() => setTab('import')}>导入</button>
         </div>
 
         {tab === 'search' && (
           <div className="space-y-4">
             <div className="relative">
-              <input type="text" placeholder="搜索电台名称..." className="w-full h-14 bg-[#ECE6F0] rounded-xl px-4 pl-12 focus:outline-none focus:ring-2 focus:ring-theme-primary transition-all" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && searchStations(searchQuery)} />
-              <Icons.Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#49454F]" />
-              <button onClick={() => searchStations(searchQuery)} className="absolute right-2 top-2 h-10 px-4 bg-theme-primary text-white rounded-lg text-sm font-medium transition-colors">搜索</button>
+              <input type="text" placeholder="搜索电台名称..." className="w-full h-14 bg-theme-container text-theme-primary rounded-xl px-4 pl-12 focus:outline-none focus:ring-2 focus:ring-theme-primary transition-all placeholder:opacity-50" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && searchStations(searchQuery)} />
+              <Icons.Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-theme-textSecondary" />
+              <button onClick={() => searchStations(searchQuery)} className="absolute right-2 top-2 h-10 px-4 bg-theme-primary text-theme-surface rounded-lg text-sm font-medium transition-colors">搜索</button>
             </div>
             <div className="space-y-2">
-              {isSearching ? <p className="text-center py-8 text-[#49454F]">正在搜索...</p> : searchResults.map(res => (
-                <div key={res.id} className="flex items-center gap-4 p-3 bg-white rounded-xl shadow-sm border border-[#E7E0EC]">
+              {isSearching ? <p className="text-center py-8 text-theme-textSecondary">正在搜索...</p> : searchResults.map(res => (
+                <div key={res.id} className="flex items-center gap-4 p-3 bg-theme-surface rounded-xl shadow-sm border border-theme-border transition-colors">
                   <div className="w-10 h-10 bg-theme-container rounded-lg overflow-hidden flex-shrink-0 transition-colors">
                     <img src={res.iconUrl} className="w-full h-full object-cover" alt="" onError={e => (e.currentTarget.style.display = 'none')} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate">{res.name}</div>
-                    <div className="text-xs text-[#49454F] truncate">{res.notes}</div>
+                    <div className="font-medium truncate text-theme-primary">{res.name}</div>
+                    <div className="text-xs text-theme-textSecondary truncate">{res.notes}</div>
                   </div>
                   <button onClick={() => { addStation(res); setCurrentView('LIST'); }} className="p-2 text-theme-primary transition-colors"><Icons.Plus className="w-6 h-6" /></button>
                 </div>
@@ -631,24 +645,24 @@ const App: React.FC = () => {
         {tab === 'manual' && (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-[#49454F] mb-1">电台名称</label>
-              <input type="text" className="w-full h-14 bg-[#ECE6F0] rounded-xl px-4 focus:outline-none" value={name} onChange={e => setName(e.target.value)} />
+              <label className="block text-sm font-medium text-theme-textSecondary mb-1">电台名称</label>
+              <input type="text" className="w-full h-14 bg-theme-container text-theme-primary rounded-xl px-4 focus:outline-none" value={name} onChange={e => setName(e.target.value)} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-[#49454F] mb-1">流链接 (MP3/AAC)</label>
-              <input type="text" className="w-full h-14 bg-[#ECE6F0] rounded-xl px-4 focus:outline-none" value={url} onChange={e => setUrl(e.target.value)} />
+              <label className="block text-sm font-medium text-theme-textSecondary mb-1">流链接 (MP3/AAC)</label>
+              <input type="text" className="w-full h-14 bg-theme-container text-theme-primary rounded-xl px-4 focus:outline-none" value={url} onChange={e => setUrl(e.target.value)} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-[#49454F] mb-1">图标 URL (可选)</label>
-              <input type="text" className="w-full h-14 bg-[#ECE6F0] rounded-xl px-4 focus:outline-none" value={iconUrl} onChange={e => setIconUrl(e.target.value)} />
+              <label className="block text-sm font-medium text-theme-textSecondary mb-1">图标 URL (可选)</label>
+              <input type="text" className="w-full h-14 bg-theme-container text-theme-primary rounded-xl px-4 focus:outline-none" value={iconUrl} onChange={e => setIconUrl(e.target.value)} />
             </div>
-            <button className="w-full h-14 bg-theme-primary text-white rounded-full font-medium transition-colors" onClick={() => { addStation({ name, url, iconUrl }); setCurrentView('LIST'); }}>保存电台</button>
+            <button className="w-full h-14 bg-theme-primary text-theme-surface rounded-full font-medium transition-colors" onClick={() => { addStation({ name, url, iconUrl }); setCurrentView('LIST'); }}>保存电台</button>
           </div>
         )}
 
         {tab === 'import' && (
           <div className="space-y-6">
-            <div className="bg-white p-4 rounded-2xl shadow-sm border border-[#E7E0EC] space-y-4">
+            <div className="bg-theme-surface p-4 rounded-2xl shadow-sm border border-theme-border transition-colors space-y-4">
               <div className="flex items-center gap-3 text-theme-primary transition-colors">
                 <Icons.File className="w-5 h-5" />
                 <h3 className="font-medium">从文件导入 (.m3u)</h3>
@@ -659,26 +673,26 @@ const App: React.FC = () => {
               </label>
             </div>
 
-            <div className="bg-white p-4 rounded-2xl shadow-sm border border-[#E7E0EC] space-y-4">
+            <div className="bg-theme-surface p-4 rounded-2xl shadow-sm border border-theme-border transition-colors space-y-4">
               <div className="flex items-center gap-3 text-theme-primary transition-colors">
                 <Icons.Globe className="w-5 h-5" />
                 <h3 className="font-medium">从 URL 导入</h3>
               </div>
               <div className="flex gap-2">
-                <input type="text" placeholder="输入 M3U 播放列表 URL..." className="flex-1 h-12 bg-[#ECE6F0] rounded-lg px-4 focus:outline-none" value={importUrl} onChange={e => setImportUrl(e.target.value)} />
-                <button onClick={handleUrlImport} disabled={isImporting} className="h-12 px-6 bg-theme-primary text-white rounded-lg font-medium disabled:opacity-50 transition-colors">
+                <input type="text" placeholder="输入 M3U 播放列表 URL..." className="flex-1 h-12 bg-theme-container text-theme-primary rounded-lg px-4 focus:outline-none" value={importUrl} onChange={e => setImportUrl(e.target.value)} />
+                <button onClick={handleUrlImport} disabled={isImporting} className="h-12 px-6 bg-theme-primary text-theme-surface rounded-lg font-medium disabled:opacity-50 transition-colors">
                   {isImporting ? '获取中...' : '导入'}
                 </button>
               </div>
             </div>
 
-            <div className="bg-white p-4 rounded-2xl shadow-sm border border-[#E7E0EC] space-y-4">
+            <div className="bg-theme-surface p-4 rounded-2xl shadow-sm border border-theme-border transition-colors space-y-4">
               <div className="flex items-center gap-3 text-theme-primary transition-colors">
                 <Icons.Edit className="w-5 h-5" />
                 <h3 className="font-medium">手动粘贴 M3U 文本</h3>
               </div>
-              <textarea placeholder="#EXTM3U..." className="w-full h-32 bg-[#ECE6F0] rounded-xl p-4 focus:outline-none font-mono text-sm" value={importText} onChange={e => setImportText(e.target.value)} />
-              <button onClick={handleTextImport} className="w-full h-12 bg-theme-primary text-white rounded-lg font-medium transition-colors">处理文本并导入</button>
+              <textarea placeholder="#EXTM3U..." className="w-full h-32 bg-theme-container text-theme-primary rounded-xl p-4 focus:outline-none font-mono text-sm" value={importText} onChange={e => setImportText(e.target.value)} />
+              <button onClick={handleTextImport} className="w-full h-12 bg-theme-primary text-theme-surface rounded-lg font-medium transition-colors">处理文本并导入</button>
             </div>
           </div>
         )}
@@ -693,14 +707,14 @@ const App: React.FC = () => {
         <div className="space-y-6">
           <div className="flex flex-col gap-4">
             <div className="flex items-center gap-4">
-              <Icons.Palette className="w-6 h-6 text-[#49454F]" />
+              <Icons.Palette className="w-6 h-6 text-theme-textSecondary" />
               <div>
-                <p className="font-medium">主题色调</p>
-                <p className="text-sm text-[#49454F]">选择应用的主题颜色</p>
+                <p className="font-medium text-theme-primary">主题色调</p>
+                <p className="text-sm text-theme-textSecondary">选择应用的主题颜色 (在浅色模式下有效)</p>
               </div>
             </div>
             <div className="flex gap-3 px-1">
-              {(Object.keys(THEME_PALETTES) as ThemeColor[]).map((color) => (
+              {(Object.keys(THEME_PALETTES) as ThemeColor[]).filter(c => c !== 'black').map((color) => (
                 <button
                   key={color}
                   onClick={() => setSettings(p => ({ ...p, themeColor: color }))}
@@ -712,12 +726,15 @@ const App: React.FC = () => {
                 />
               ))}
             </div>
+            {isSystemDark && (
+              <p className="text-xs text-theme-textSecondary italic">系统已开启深色模式，主题已自动切换为纯黑模式。</p>
+            )}
           </div>
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Icons.Plus className="w-6 h-6 text-[#49454F]" />
-              <div><p className="font-medium">图标样式</p><p className="text-sm text-[#49454F] transition-all">{settings.iconStyle === 'circle' ? '圆形' : '方形'}</p></div>
+              <Icons.Plus className="w-6 h-6 text-theme-textSecondary" />
+              <div><p className="font-medium text-theme-primary">图标样式</p><p className="text-sm text-theme-textSecondary transition-all">{settings.iconStyle === 'circle' ? '圆形' : '方形'}</p></div>
             </div>
             <button onClick={() => setSettings(p => ({...p, iconStyle: p.iconStyle === 'circle' ? 'square' : 'circle'}))} className="px-4 py-2 bg-theme-container text-theme-onContainer rounded-full text-sm font-medium transition-colors">切换</button>
           </div>
@@ -726,18 +743,18 @@ const App: React.FC = () => {
 
       <section>
         <h2 className="text-theme-primary text-sm font-medium mb-4 uppercase tracking-wider transition-colors">定时器</h2>
-        <div className="bg-white p-4 rounded-2xl shadow-sm border border-[#E7E0EC] space-y-4">
-          <p className="text-sm font-medium text-[#49454F]">到达时间后的操作</p>
+        <div className="bg-theme-surface p-4 rounded-2xl shadow-sm border border-theme-border space-y-4">
+          <p className="text-sm font-medium text-theme-textSecondary">到达时间后的操作</p>
           <div className="flex gap-4">
             <button 
                 onClick={() => setSettings(p => ({...p, sleepTimerAction: 'pause'}))}
-                className={`flex-1 py-3 rounded-xl border font-medium text-sm transition-colors ${settings.sleepTimerAction === 'pause' ? 'bg-theme-container border-theme-primary text-theme-onContainer' : 'bg-[#F7F2FA] border-[#E7E0EC]'}`}
+                className={`flex-1 py-3 rounded-xl border font-medium text-sm transition-colors ${settings.sleepTimerAction === 'pause' ? 'bg-theme-container border-theme-primary text-theme-primary' : 'bg-theme-surface border-theme-border text-theme-onContainer'}`}
             >
                 暂停播放
             </button>
             <button 
                 onClick={() => setSettings(p => ({...p, sleepTimerAction: 'stop'}))}
-                className={`flex-1 py-3 rounded-xl border font-medium text-sm transition-colors ${settings.sleepTimerAction === 'stop' ? 'bg-theme-container border-theme-primary text-theme-onContainer' : 'bg-[#F7F2FA] border-[#E7E0EC]'}`}
+                className={`flex-1 py-3 rounded-xl border font-medium text-sm transition-colors ${settings.sleepTimerAction === 'stop' ? 'bg-theme-container border-theme-primary text-theme-primary' : 'bg-theme-surface border-theme-border text-theme-onContainer'}`}
             >
                 重置播放
             </button>
@@ -748,12 +765,12 @@ const App: React.FC = () => {
       <section>
         <h2 className="text-theme-primary text-sm font-medium mb-4 uppercase tracking-wider transition-colors">数据</h2>
         <div className="space-y-4">
-          <button className="w-full p-4 bg-white border border-[#E7E0EC] rounded-xl text-left flex items-center gap-4" onClick={() => {
+          <button className="w-full p-4 bg-theme-surface border border-theme-border rounded-xl text-left flex items-center gap-4 text-theme-primary" onClick={() => {
             const blob = new Blob([JSON.stringify(stations)], {type: 'application/json'});
             const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'transistor_backup.json'; a.click();
           }}>
-            <Icons.Share className="w-6 h-6 text-[#49454F]" />
-            <div><p className="font-medium">备份</p><p className="text-sm text-[#49454F]">导出电台数据</p></div>
+            <Icons.Share className="w-6 h-6 text-theme-textSecondary" />
+            <div><p className="font-medium">备份</p><p className="text-sm text-theme-textSecondary">导出电台数据</p></div>
           </button>
           <button className="w-full p-4 bg-[#F9DEDC] border border-[#B3261E] rounded-xl text-left flex items-center gap-4 text-[#410E0B]" onClick={() => { if (confirm('确定要清除所有数据吗？')) { localStorage.clear(); window.location.reload(); } }}>
             <Icons.Trash className="w-6 h-6" />
@@ -767,7 +784,7 @@ const App: React.FC = () => {
   const FullPlayerView = () => {
     if (!activeStation) return null;
     return (
-      <div className="fixed inset-0 bg-[#211F26] text-white z-50 flex flex-col p-6 animate-slide-up overflow-y-auto">
+      <div className="fixed inset-0 bg-[#000000] text-white z-50 flex flex-col p-6 animate-slide-up overflow-y-auto">
         <div className="flex items-center justify-between mb-8">
           <button onClick={() => setCurrentView('LIST')} className="p-2"><Icons.ChevronLeft className="w-6 h-6" /></button>
           <div className="text-center">
@@ -777,7 +794,7 @@ const App: React.FC = () => {
           <button onClick={() => deleteStation(activeStation.id)} className="p-2 text-[#F2B8B5]"><Icons.Trash className="w-6 h-6" /></button>
         </div>
         <div className="flex-1 flex flex-col items-center justify-center space-y-12">
-          <div className={`relative w-64 h-64 bg-[#49454F] shadow-2xl flex items-center justify-center overflow-hidden transition-all duration-500 ${settings.iconStyle === 'circle' ? 'rounded-full' : 'rounded-3xl'}`}>
+          <div className={`relative w-64 h-64 bg-[#1C1B1F] shadow-2xl flex items-center justify-center overflow-hidden transition-all duration-500 border border-white/10 ${settings.iconStyle === 'circle' ? 'rounded-full' : 'rounded-3xl'}`}>
             {activeStation.iconUrl ? <img src={activeStation.iconUrl} className="w-full h-full object-cover" alt="" /> : <Icons.Radio className="w-24 h-24 text-white/20" />}
             {isLoading && (
               <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
@@ -787,29 +804,29 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex flex-col items-center gap-4">
-             <button onClick={() => togglePlay()} className="w-20 h-20 bg-theme-active text-theme-onContainer rounded-full flex items-center justify-center shadow-xl hover:scale-105 active:scale-95 transition-transform">
+             <button onClick={() => togglePlay()} className="w-20 h-20 bg-theme-primary text-theme-surface rounded-full flex items-center justify-center shadow-xl hover:scale-105 active:scale-95 transition-transform">
                {isPlaying ? <Icons.Pause className="w-10 h-10" /> : <Icons.Play className="w-10 h-10 ml-1" />}
              </button>
              {sleepTimer && (
                 <div className="flex items-center gap-2 bg-white/10 px-4 py-1.5 rounded-full backdrop-blur-md">
-                    <Icons.Timer className="w-4 h-4 text-theme-active transition-colors" />
-                    <span className="text-sm font-medium text-theme-active transition-colors">{sleepTimer} 分钟后停止</span>
+                    <Icons.Timer className="w-4 h-4 text-theme-primary transition-colors" />
+                    <span className="text-sm font-medium text-theme-primary transition-colors">{sleepTimer} 分钟后停止</span>
                 </div>
              )}
           </div>
 
           <div className="w-full max-w-sm flex items-center gap-4">
             <Icons.Volume2 className="w-6 h-6 text-white/70" />
-            <input type="range" min="0" max="1" step="0.01" value={volume} onChange={e => setVolume(parseFloat(e.target.value))} className="flex-1 accent-theme-active h-1.5 rounded-full appearance-none bg-white/20 transition-all" />
+            <input type="range" min="0" max="1" step="0.01" value={volume} onChange={e => setVolume(parseFloat(e.target.value))} className="flex-1 accent-theme-primary h-1.5 rounded-full appearance-none bg-white/20 transition-all" />
           </div>
         </div>
         <div className="grid grid-cols-4 gap-4 mt-auto pt-8">
           <button onClick={() => setIsTimerDialogOpen(true)} className="flex flex-col items-center gap-1 p-2">
-            <Icons.Timer className={`w-6 h-6 transition-colors ${sleepTimer ? 'text-theme-active' : 'text-white/70'}`} />
+            <Icons.Timer className={`w-6 h-6 transition-colors ${sleepTimer ? 'text-theme-primary' : 'text-white/70'}`} />
             <span className="text-[10px] uppercase font-medium tracking-widest transition-colors">{sleepTimer ? `${sleepTimer}m` : '定时'}</span>
           </button>
           <button onClick={() => toggleFavorite(activeStation.id)} className="flex flex-col items-center gap-1 p-2">
-            <Icons.Star className={`w-6 h-6 transition-colors ${activeStation.isFavorite ? 'text-theme-active' : 'text-white/70'}`} active={activeStation.isFavorite} />
+            <Icons.Star className={`w-6 h-6 transition-colors ${activeStation.isFavorite ? 'text-theme-primary' : 'text-white/70'}`} active={activeStation.isFavorite} />
             <span className="text-[10px] uppercase font-medium tracking-widest transition-colors">收藏</span>
           </button>
           <button onClick={() => {
@@ -843,6 +860,8 @@ const App: React.FC = () => {
           --theme-on-container: ${activePalette.onContainer};
           --theme-active: ${activePalette.active};
           --theme-surface: ${activePalette.surface};
+          --theme-border: ${activePalette.border};
+          --theme-text-secondary: ${activePalette.textSecondary};
         }
         body { background-color: var(--theme-surface); transition: background-color 0.5s ease; }
         .text-theme-primary { color: var(--theme-primary); }
@@ -853,7 +872,10 @@ const App: React.FC = () => {
         .text-theme-active { color: var(--theme-active); }
         .bg-theme-active { background-color: var(--theme-active); }
         .bg-theme-surface { background-color: var(--theme-surface); }
+        .border-theme-border { border-color: var(--theme-border); }
+        .text-theme-textSecondary { color: var(--theme-text-secondary); }
         .accent-theme-active { accent-color: var(--theme-active); }
+        .accent-theme-primary { accent-color: var(--theme-primary); }
         .focus\\:ring-theme-primary:focus { --tw-ring-color: var(--theme-primary); }
       `}</style>
       <Header />
@@ -862,12 +884,12 @@ const App: React.FC = () => {
           <div className="pb-24">
             {stations.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 px-8 text-center space-y-4">
-                <div className="w-24 h-24 bg-[#E7E0EC] rounded-full flex items-center justify-center"><Icons.Radio className="w-12 h-12 text-[#49454F]" /></div>
-                <p className="text-[#49454F]">尚未添加电台，快去添加吧！</p>
-                <button onClick={() => setCurrentView('ADD')} className="bg-theme-primary text-white px-8 py-3 rounded-full font-medium transition-colors">添加新电台</button>
+                <div className="w-24 h-24 bg-theme-container rounded-full flex items-center justify-center transition-colors duration-500"><Icons.Radio className="w-12 h-12 text-theme-textSecondary" /></div>
+                <p className="text-theme-textSecondary">尚未添加电台，快去添加吧！</p>
+                <button onClick={() => setCurrentView('ADD')} className="bg-theme-primary text-theme-surface px-8 py-3 rounded-full font-medium transition-colors">添加新电台</button>
               </div>
             ) : (
-              <div className="divide-y divide-[#E7E0EC] transition-all">
+              <div className="divide-y divide-theme-border transition-all duration-500">
                 {sortedStations.map(s => <StationCard key={s.id} station={s} />)}
               </div>
             )}
