@@ -105,6 +105,116 @@ const parseM3U = (content: string) => {
     return stations;
 };
 
+// --- Components ---
+
+const StationItem = ({ 
+    station, 
+    isActive, 
+    isPlaying, 
+    iconStyle, 
+    onPlay, 
+    onToggleFavorite, 
+    onDelete 
+}: any) => {
+    const [offsetX, setOffsetX] = useState(0);
+    const [isSwiping, setIsSwiping] = useState(false);
+    const startX = useRef(0);
+    const itemRef = useRef<HTMLDivElement>(null);
+    const threshold = 150; // Distance for direct action
+
+    const handleTouchStart = (e: React.TouchEvent) => {
+        startX.current = e.touches[0].clientX;
+        setIsSwiping(true);
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        const currentX = e.touches[0].clientX;
+        const diff = currentX - startX.current;
+        setOffsetX(diff);
+    };
+
+    const handleTouchEnd = () => {
+        setIsSwiping(false);
+        const screenWidth = window.innerWidth;
+        
+        if (offsetX < -threshold) {
+            // Full swipe left - Delete
+            onDelete(station);
+        } else if (offsetX > threshold) {
+            // Full swipe right - Favorite
+            onToggleFavorite(station);
+            setOffsetX(0);
+        } else {
+            // Reset position
+            setOffsetX(0);
+        }
+    };
+
+    const opacityAction = Math.min(Math.abs(offsetX) / threshold, 1);
+
+    return (
+        <div className="relative overflow-hidden bg-slate-100">
+            {/* Action Layers */}
+            {/* Delete Layer (Left Swipe) */}
+            <div 
+                className={`absolute inset-0 bg-[#BA1A1A] flex items-center justify-end px-8 transition-opacity`}
+                style={{ opacity: offsetX < 0 ? opacityAction : 0 }}
+            >
+                <div className="flex flex-col items-center gap-1 text-white animate-fade-in">
+                    <Icons.Trash className="w-8 h-8" />
+                    <span className="text-xs font-black uppercase tracking-widest">释放删除</span>
+                </div>
+            </div>
+
+            {/* Favorite Layer (Right Swipe) */}
+            <div 
+                className={`absolute inset-0 bg-yellow-500 flex items-center justify-start px-8 transition-opacity`}
+                style={{ opacity: offsetX > 0 ? opacityAction : 0 }}
+            >
+                <div className="flex flex-col items-center gap-1 text-white animate-fade-in">
+                    <Icons.Star className="w-8 h-8" active={true} />
+                    <span className="text-xs font-black uppercase tracking-widest">
+                        {station.isFavorite ? '取消收藏' : '添加收藏'}
+                    </span>
+                </div>
+            </div>
+
+            {/* Main Station Item Layer */}
+            <div 
+                ref={itemRef}
+                style={{ 
+                    transform: `translateX(${offsetX}px)`,
+                    transition: isSwiping ? 'none' : 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+                }}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                onClick={() => offsetX === 0 && onPlay(station)}
+                className="relative bg-white flex items-center gap-4 px-4 py-3 hover:bg-black/[0.02] cursor-pointer group select-none border-b border-slate-50"
+            >
+                <div className={`w-14 h-14 bg-white shadow-sm flex items-center justify-center overflow-hidden transition-all ${iconStyle === 'circle' ? 'rounded-full' : 'rounded-2xl'} group-active:scale-90 border border-slate-100`}>
+                    {station.iconUrl ? <img src={station.iconUrl} className="w-full h-full object-cover" onError={(e: any) => e.target.style.display = 'none'} /> : <Icons.Radio className="w-6 h-6 opacity-20" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                    <div className="font-bold truncate text-slate-800">{station.name}</div>
+                    <div className="text-[10px] text-slate-400 truncate opacity-60 font-mono">{station.url}</div>
+                </div>
+                <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                    <button 
+                        onClick={() => onToggleFavorite(station)} 
+                        className={`p-2 transition-colors ${station.isFavorite ? 'text-yellow-500' : 'text-slate-300 hover:text-primary'}`}
+                    >
+                        <Icons.Star className="w-5 h-5" active={station.isFavorite} />
+                    </button>
+                    <div className="text-primary">
+                        {isActive && isPlaying ? <Icons.Pause className="w-7 h-7" /> : <Icons.Play className="w-7 h-7" />}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // --- Views ---
 
 const AddView = ({ addStation, addStations, searchStations, isSearching, searchResults, setView }: any) => {
@@ -248,6 +358,18 @@ const App = () => {
         }
     };
 
+    const deleteStation = (s: any) => {
+        if (activeStation?.url === s.url) {
+            audioRef.current?.pause();
+            setActiveStation(null);
+        }
+        setStations(prev => prev.filter(item => item.url !== s.url));
+    };
+
+    const toggleFavorite = (s: any) => {
+        setStations(prev => prev.map(item => item.url === s.url ? { ...item, isFavorite: !item.isFavorite } : item));
+    };
+
     const palette = THEME_PALETTES[settings.themeColor];
 
     const filteredList = useMemo(() => {
@@ -281,43 +403,46 @@ const App = () => {
             <main className="flex-1 overflow-y-auto no-scrollbar pb-32">
                 {currentView === 'LIST' && (
                     <div className="h-full flex flex-col">
-                        {stations.length > 0 ? (
-                            <>
-                                <div className="p-4">
+                        <div className="sticky top-0 bg-inherit z-10">
+                            {stations.length > 0 && (
+                                <div className="p-4 bg-white/50 backdrop-blur-sm border-b" style={{ borderColor: palette.border }}>
                                     <div className="relative">
                                         <Icons.Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-30" />
-                                        <input placeholder="搜索已存电台..." className="w-full h-10 pl-10 pr-4 bg-white/50 border rounded-full text-sm focus:outline-none" style={{ borderColor: palette.border }} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                                        <input placeholder="搜索已存电台..." className="w-full h-10 pl-10 pr-4 bg-white/20 border rounded-full text-sm focus:outline-none" style={{ borderColor: palette.border }} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                                    </div>
+                                    <div className="flex justify-between items-center mt-3 px-2">
+                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">← 左滑删除</p>
+                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">右滑收藏 →</p>
                                     </div>
                                 </div>
-                                {filteredList.length > 0 ? (
-                                    <div className="space-y-1">
-                                        {filteredList.map(s => (
-                                            <div key={s.id || s.url} onClick={() => playStation(s)} className="flex items-center gap-4 px-4 py-3 hover:bg-black/5 cursor-pointer group">
-                                                <div className={`w-14 h-14 bg-white shadow-sm flex items-center justify-center overflow-hidden transition-all ${settings.iconStyle === 'circle' ? 'rounded-full' : 'rounded-2xl'} group-active:scale-90 border border-slate-100`}>
-                                                    {s.iconUrl ? <img src={s.iconUrl} className="w-full h-full object-cover" onError={(e: any) => e.target.style.display = 'none'} /> : <Icons.Radio className="w-6 h-6 opacity-20" />}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="font-bold truncate text-slate-800">{s.name}</div>
-                                                    <div className="text-[10px] text-slate-400 truncate opacity-60 font-mono">{s.url}</div>
-                                                </div>
-                                                <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                                                    <button onClick={() => setStations(prev => prev.map(item => item.url === s.url ? { ...item, isFavorite: !item.isFavorite } : item))} className={`p-2 transition-colors ${s.isFavorite ? 'text-yellow-500' : 'text-slate-300 hover:text-primary'}`}><Icons.Star className="w-5 h-5" active={s.isFavorite} /></button>
-                                                    <div className="text-primary">{activeStation?.url === s.url && isPlaying ? <Icons.Pause className="w-7 h-7" /> : <Icons.Play className="w-7 h-7" />}</div>
-                                                </div>
-                                            </div>
-                                        ))}
+                            )}
+                        </div>
+
+                        {stations.length > 0 ? (
+                            filteredList.length > 0 ? (
+                                <div className="space-y-px">
+                                    {filteredList.map(s => (
+                                        <StationItem 
+                                            key={s.id || s.url}
+                                            station={s}
+                                            isActive={activeStation?.url === s.url}
+                                            isPlaying={isPlaying}
+                                            iconStyle={settings.iconStyle}
+                                            onPlay={playStation}
+                                            onToggleFavorite={toggleFavorite}
+                                            onDelete={deleteStation}
+                                        />
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="flex-1 flex flex-col items-center justify-center p-8 animate-fade-in text-center">
+                                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                                        <Icons.Search className="w-6 h-6 text-slate-300" />
                                     </div>
-                                ) : (
-                                    <div className="flex-1 flex flex-col items-center justify-center p-8 animate-fade-in text-center">
-                                        <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
-                                            <Icons.Search className="w-6 h-6 text-slate-300" />
-                                        </div>
-                                        <h3 className="font-bold text-slate-400 mb-1">未找到匹配电台</h3>
-                                        <p className="text-xs text-slate-300 mb-6">尝试更换搜索词或添加新电台</p>
-                                        <button onClick={() => setSearchQuery('')} className="px-6 py-2 bg-slate-200 text-slate-600 rounded-full text-xs font-bold uppercase tracking-widest">清除搜索</button>
-                                    </div>
-                                )}
-                            </>
+                                    <h3 className="font-bold text-slate-400 mb-1">未找到匹配电台</h3>
+                                    <button onClick={() => setSearchQuery('')} className="px-6 py-2 bg-slate-200 text-slate-600 rounded-full text-xs font-bold uppercase tracking-widest mt-4">清除搜索</button>
+                                </div>
+                            )
                         ) : (
                             <div className="flex-1 flex flex-col items-center justify-center p-12 animate-fade-in text-center space-y-6">
                                 <div className="w-32 h-32 bg-primary/5 rounded-full flex items-center justify-center">
@@ -331,11 +456,6 @@ const App = () => {
                                     <Icons.Plus className="w-5 h-5" />
                                     发现电台
                                 </button>
-                                <div className="pt-4 flex gap-4 text-[10px] font-black uppercase tracking-widest text-slate-300">
-                                    <span>本地离线</span>
-                                    <span>•</span>
-                                    <span>隐私安全</span>
-                                </div>
                             </div>
                         )}
                     </div>
@@ -414,7 +534,7 @@ const App = () => {
                             <div className="text-[10px] font-black uppercase tracking-[0.3em] opacity-30">正在播放</div>
                             <div className="text-sm font-bold text-slate-800 truncate max-w-[200px]">{activeStation.name}</div>
                         </div>
-                        <button onClick={() => { if (confirm('确定移除此电台？')) { setStations(p => p.filter(it => it.url !== activeStation.url)); setCurrentView('LIST'); setActiveStation(null); audioRef.current?.pause(); } }} className="p-2 text-slate-300"><Icons.Trash className="w-6 h-6" /></button>
+                        <button onClick={() => { if (confirm('确定移除此电台？')) { deleteStation(activeStation); setCurrentView('LIST'); } }} className="p-2 text-slate-300"><Icons.Trash className="w-6 h-6" /></button>
                     </div>
                     <div className="flex-1 flex flex-col items-center justify-center gap-12">
                         <div className={`w-72 h-72 bg-white shadow-2xl border-4 border-white flex items-center justify-center overflow-hidden transform transition-transform duration-700 ${isPlaying ? 'scale-105' : 'scale-95 grayscale-[0.5]'} ${settings.iconStyle === 'circle' ? 'rounded-full' : 'rounded-[40px]'}`}>
@@ -432,7 +552,7 @@ const App = () => {
                     </div>
                     <div className="grid grid-cols-3 pt-12">
                         <button onClick={() => setIsTimerDialogOpen(true)} className="flex flex-col items-center gap-1"><Icons.Timer className={`w-6 h-6 ${sleepTimer ? 'text-primary' : 'opacity-20'}`} /><span className="text-[10px] font-bold uppercase">{sleepTimer ? `${sleepTimer}m` : '定时'}</span></button>
-                        <button onClick={() => setStations(p => p.map(it => it.url === activeStation.url ? { ...it, isFavorite: !it.isFavorite } : it))} className="flex flex-col items-center gap-1"><Icons.Star className={`w-6 h-6 ${activeStation.isFavorite ? 'text-yellow-500' : 'opacity-20'}`} active={activeStation.isFavorite} /><span className="text-[10px] font-bold uppercase">收藏</span></button>
+                        <button onClick={() => toggleFavorite(activeStation)} className="flex flex-col items-center gap-1"><Icons.Star className={`w-6 h-6 ${activeStation.isFavorite ? 'text-yellow-500' : 'opacity-20'}`} active={activeStation.isFavorite} /><span className="text-[10px] font-bold uppercase">收藏</span></button>
                         <button onClick={() => { navigator.clipboard.writeText(activeStation.url); alert('URL 已复制'); }} className="flex flex-col items-center gap-1 opacity-20"><Icons.Plus className="w-6 h-6 rotate-45" /><span className="text-[10px] font-bold uppercase">分享</span></button>
                     </div>
                 </div>
