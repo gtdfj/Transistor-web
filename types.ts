@@ -11,11 +11,14 @@ export interface Station {
 
 export type ViewState = 'LIST' | 'ADD' | 'SETTINGS' | 'FULL_PLAYER';
 
+export type ThemeColor = 'purple' | 'blue' | 'green' | 'red' | 'orange';
+
 export interface AppSettings {
   theme: 'light' | 'dark' | 'system';
+  themeColor: ThemeColor;
   showStreamUrl: boolean;
   iconStyle: 'circle' | 'square';
-  sleepTimerAction: 'pause' | 'close';
+  sleepTimerAction: 'pause' | 'stop';
   resumePlayback: 'never' | 'always' | 'ask';
   networkType: 'any' | 'wifi';
 }

@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { ThemeColor } from './types';
 
 export const Icons = {
   Radio: (props: any) => (
@@ -82,27 +83,22 @@ export const Icons = {
       <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
       <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
     </svg>
+  ),
+  Palette: (props: any) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/>
+      <circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/>
+      <circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/>
+      <circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/>
+      <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.6-.4 2.1-1 .3-.4.6-.8 1-1 .4-.2.9-.3 1.4-.3 2.5 0 4.5-2 4.5-4.5 0-4.4-3.6-10.2-9-10.2z"/>
+    </svg>
   )
 };
 
-export const COLORS = {
-  primary: '#6750A4',
-  onPrimary: '#FFFFFF',
-  primaryContainer: '#EADDFF',
-  onPrimaryContainer: '#21005D',
-  secondary: '#625B71',
-  onSecondary: '#FFFFFF',
-  secondaryContainer: '#E8DEF8',
-  onSecondaryContainer: '#1D192B',
-  tertiary: '#7D5260',
-  onTertiary: '#FFFFFF',
-  tertiaryContainer: '#FFD8E4',
-  onTertiaryContainer: '#31111D',
-  error: '#B3261E',
-  onError: '#FFFFFF',
-  errorContainer: '#F9DEDC',
-  onErrorContainer: '#410E0B',
-  surface: '#F7F2FA',
-  onSurface: '#1C1B1F',
-  outline: '#79747E',
+export const THEME_PALETTES: Record<ThemeColor, { primary: string, container: string, onContainer: string, surface: string }> = {
+  purple: { primary: '#6750A4', container: '#EADDFF', onContainer: '#21005D', surface: '#F7F2FA' },
+  blue: { primary: '#0061A4', container: '#D1E4FF', onContainer: '#001D36', surface: '#F8FBFF' },
+  green: { primary: '#006D32', container: '#98FB9D', onContainer: '#00210A', surface: '#F7FFF7' },
+  red: { primary: '#BA1A1A', container: '#FFDAD6', onContainer: '#410002', surface: '#FFF8F7' },
+  orange: { primary: '#8B5000', container: '#FFDDB3', onContainer: '#2C1600', surface: '#FFF8F2' },
 };

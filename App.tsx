@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Station, ViewState, AppSettings, RadioBrowserStation } from './types';
-import { Icons, COLORS } from './constants';
+import { Station, ViewState, AppSettings, RadioBrowserStation, ThemeColor } from './types';
+import { Icons, THEME_PALETTES } from './constants';
 
 const App: React.FC = () => {
   // State
@@ -11,6 +11,7 @@ const App: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [settings, setSettings] = useState<AppSettings>({
     theme: 'system',
+    themeColor: 'purple',
     showStreamUrl: true,
     iconStyle: 'circle',
     sleepTimerAction: 'pause',
@@ -26,7 +27,6 @@ const App: React.FC = () => {
 
   // Refs
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  // Fix: Use number for browser-based setInterval return value to avoid NodeJS namespace error
   const sleepTimerRef = useRef<number | null>(null);
 
   // Persistence
@@ -37,7 +37,7 @@ const App: React.FC = () => {
     }
     const savedSettings = localStorage.getItem('transistor_settings');
     if (savedSettings) {
-      setSettings(JSON.parse(savedSettings));
+      setSettings(p => ({ ...p, ...JSON.parse(savedSettings) }));
     }
   }, []);
 
@@ -100,23 +100,20 @@ const App: React.FC = () => {
   // Sleep Timer Logic
   useEffect(() => {
     if (sleepTimer !== null && sleepTimer > 0) {
-      // Fix: Use window.setInterval to ensure the returned ID is treated as a number
       sleepTimerRef.current = window.setInterval(() => {
         setSleepTimer(prev => {
           if (prev && prev > 1) return prev - 1;
           
-          // Timer finished
           if (isPlaying && audioRef.current) {
             audioRef.current.pause();
           }
-          if (settings.sleepTimerAction === 'close') {
-            // Can't really "close" a web tab easily, but we can stop everything
+          if (settings.sleepTimerAction === 'stop') {
             setActiveStation(null);
             setIsPlaying(false);
           }
           return null;
         });
-      }, 60000); // 1 minute
+      }, 60000);
     } else {
       if (sleepTimerRef.current) window.clearInterval(sleepTimerRef.current);
     }
@@ -176,9 +173,19 @@ const App: React.FC = () => {
     }
   };
 
+  // Sorted list logic: Favorites first, then by date added (newest first)
+  const sortedStations = [...stations].sort((a, b) => {
+    if (a.isFavorite !== b.isFavorite) {
+      return a.isFavorite ? -1 : 1;
+    }
+    return b.addedAt - a.addedAt;
+  });
+
+  const activePalette = THEME_PALETTES[settings.themeColor];
+
   // Rendering Components
   const Header = () => (
-    <div className="sticky top-0 z-20 flex items-center justify-between px-4 h-16 bg-[#F7F2FA] border-b border-[#E7E0EC]">
+    <div className="sticky top-0 z-20 flex items-center justify-between px-4 h-16 bg-surface border-b border-[#E7E0EC]">
       <div className="flex items-center gap-4">
         {currentView !== 'LIST' && (
           <button onClick={() => setCurrentView('LIST')} className="p-2 rounded-full hover:bg-black/5">
@@ -194,7 +201,7 @@ const App: React.FC = () => {
       <div className="flex items-center gap-1">
         {currentView === 'LIST' && (
           <>
-            <button onClick={() => setCurrentView('ADD')} className="p-3 rounded-full hover:bg-black/5">
+            <button onClick={() => setCurrentView('ADD')} className="p-3 rounded-full hover:bg-black/5 text-primary">
               <Icons.Plus className="w-6 h-6" />
             </button>
             <button onClick={() => setCurrentView('SETTINGS')} className="p-3 rounded-full hover:bg-black/5">
@@ -206,11 +213,10 @@ const App: React.FC = () => {
     </div>
   );
 
-  // Fix: Explicitly type StationCard as React.FC to allow 'key' prop in JSX usage
   const StationCard: React.FC<{ station: Station }> = ({ station }) => (
     <div className="flex items-center gap-4 p-4 hover:bg-black/5 group transition-colors">
       <div 
-        className={`flex-shrink-0 w-12 h-12 flex items-center justify-center bg-[#EADDFF] text-[#21005D] ${settings.iconStyle === 'circle' ? 'rounded-full' : 'rounded-lg'}`}
+        className={`flex-shrink-0 w-12 h-12 flex items-center justify-center bg-primaryContainer text-onPrimaryContainer ${settings.iconStyle === 'circle' ? 'rounded-full' : 'rounded-lg'}`}
         onClick={() => togglePlay(station)}
       >
         {station.iconUrl ? (
@@ -228,13 +234,13 @@ const App: React.FC = () => {
       <div className="flex items-center gap-1">
         <button 
           onClick={() => toggleFavorite(station.id)}
-          className={`p-2 rounded-full hover:bg-black/5 ${station.isFavorite ? 'text-[#6750A4]' : 'text-[#49454F]'}`}
+          className={`p-2 rounded-full hover:bg-black/5 ${station.isFavorite ? 'text-primary' : 'text-[#49454F]'}`}
         >
           <Icons.Star className="w-5 h-5" active={station.isFavorite} />
         </button>
         <button 
           onClick={() => togglePlay(station)}
-          className="p-2 rounded-full hover:bg-black/5 text-[#6750A4]"
+          className="p-2 rounded-full hover:bg-black/5 text-primary"
         >
           {activeStation?.id === station.id && isPlaying ? (
             <Icons.Pause className="w-6 h-6" />
@@ -268,9 +274,9 @@ const App: React.FC = () => {
         </div>
         <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
           <button onClick={() => setSleepTimer(prev => prev ? null : 30)} className="p-2">
-            <Icons.Timer className={`w-6 h-6 ${sleepTimer ? 'text-[#D0BCFF]' : 'text-white/70'}`} />
+            <Icons.Timer className={`w-6 h-6 ${sleepTimer ? 'text-primaryActive' : 'text-white/70'}`} />
           </button>
-          <button onClick={() => togglePlay()} className="p-2 bg-[#D0BCFF] text-[#381E72] rounded-full">
+          <button onClick={() => togglePlay()} className="p-2 bg-primaryActive text-onPrimaryContainer rounded-full">
             {isPlaying ? <Icons.Pause className="w-6 h-6" /> : <Icons.Play className="w-6 h-6" />}
           </button>
         </div>
@@ -307,7 +313,7 @@ const App: React.FC = () => {
               <input 
                 type="text" 
                 placeholder="搜索电台名称..." 
-                className="w-full h-14 bg-[#ECE6F0] rounded-xl px-4 pl-12 focus:outline-none focus:ring-2 focus:ring-[#6750A4]"
+                className="w-full h-14 bg-[#ECE6F0] rounded-xl px-4 pl-12 focus:outline-none focus:ring-2 focus:ring-primary"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && searchStations(searchQuery)}
@@ -315,7 +321,7 @@ const App: React.FC = () => {
               <Icons.Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#49454F]" />
               <button 
                 onClick={() => searchStations(searchQuery)}
-                className="absolute right-2 top-2 h-10 px-4 bg-[#6750A4] text-white rounded-lg text-sm font-medium"
+                className="absolute right-2 top-2 h-10 px-4 bg-primary text-white rounded-lg text-sm font-medium"
               >
                 搜索
               </button>
@@ -326,7 +332,7 @@ const App: React.FC = () => {
                 <p className="text-center py-8 text-[#49454F]">正在搜索...</p>
               ) : searchResults.map(res => (
                 <div key={res.id} className="flex items-center gap-4 p-3 bg-white rounded-xl shadow-sm border border-[#E7E0EC]">
-                  <div className="w-10 h-10 bg-[#EADDFF] rounded-lg overflow-hidden flex-shrink-0">
+                  <div className="w-10 h-10 bg-primaryContainer rounded-lg overflow-hidden flex-shrink-0">
                     <img src={res.iconUrl} className="w-full h-full object-cover" onError={(e) => e.currentTarget.src = ''} />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -335,7 +341,7 @@ const App: React.FC = () => {
                   </div>
                   <button 
                     onClick={() => addStation(res)}
-                    className="p-2 text-[#6750A4]"
+                    className="p-2 text-primary"
                   >
                     <Icons.Plus className="w-6 h-6" />
                   </button>
@@ -373,7 +379,7 @@ const App: React.FC = () => {
               />
             </div>
             <button 
-              className="w-full h-14 bg-[#6750A4] text-white rounded-full font-medium"
+              className="w-full h-14 bg-primary text-white rounded-full font-medium"
               onClick={() => addStation({ name, url, iconUrl })}
             >
               保存电台
@@ -387,8 +393,30 @@ const App: React.FC = () => {
   const SettingsView = () => (
     <div className="p-4 space-y-8 pb-24">
       <section>
-        <h2 className="text-[#6750A4] text-sm font-medium mb-4 uppercase tracking-wider">常规</h2>
+        <h2 className="text-primary text-sm font-medium mb-4 uppercase tracking-wider">外观</h2>
         <div className="space-y-6">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-4">
+              <Icons.Palette className="w-6 h-6 text-[#49454F]" />
+              <div>
+                <p className="font-medium">主题颜色</p>
+                <p className="text-sm text-[#49454F]">选择应用的主题色调</p>
+              </div>
+            </div>
+            <div className="flex gap-3 px-1">
+              {(Object.keys(THEME_PALETTES) as ThemeColor[]).map((color) => (
+                <button
+                  key={color}
+                  onClick={() => setSettings(p => ({ ...p, themeColor: color }))}
+                  className={`w-10 h-10 rounded-full border-4 transition-transform active:scale-90 ${
+                    settings.themeColor === color ? 'border-primary' : 'border-transparent'
+                  }`}
+                  style={{ backgroundColor: THEME_PALETTES[color].primary }}
+                  title={color}
+                />
+              ))}
+            </div>
+          </div>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Icons.Plus className="w-6 h-6 text-[#49454F]" />
@@ -399,7 +427,7 @@ const App: React.FC = () => {
             </div>
             <button 
               onClick={() => setSettings(p => ({...p, iconStyle: p.iconStyle === 'circle' ? 'square' : 'circle'}))}
-              className="px-4 py-2 bg-[#EADDFF] text-[#21005D] rounded-full text-sm font-medium"
+              className="px-4 py-2 bg-primaryContainer text-onPrimaryContainer rounded-full text-sm font-medium"
             >
               切换
             </button>
@@ -416,14 +444,14 @@ const App: React.FC = () => {
               type="checkbox" 
               checked={settings.showStreamUrl}
               onChange={() => setSettings(p => ({...p, showStreamUrl: !p.showStreamUrl}))}
-              className="w-12 h-6 appearance-none bg-[#ECE6F0] rounded-full checked:bg-[#6750A4] relative transition-colors cursor-pointer before:content-[''] before:absolute before:w-5 before:h-5 before:bg-white before:rounded-full before:top-0.5 before:left-0.5 before:transition-transform checked:before:translate-x-6"
+              className="w-12 h-6 appearance-none bg-[#ECE6F0] rounded-full checked:bg-primary relative transition-colors cursor-pointer before:content-[''] before:absolute before:w-5 before:h-5 before:bg-white before:rounded-full before:top-0.5 before:left-0.5 before:transition-transform checked:before:translate-x-6"
             />
           </div>
         </div>
       </section>
 
       <section>
-        <h2 className="text-[#6750A4] text-sm font-medium mb-4 uppercase tracking-wider">存储</h2>
+        <h2 className="text-primary text-sm font-medium mb-4 uppercase tracking-wider">存储</h2>
         <div className="space-y-4">
           <button 
             className="w-full p-4 bg-white border border-[#E7E0EC] rounded-xl text-left flex items-center gap-4"
@@ -488,8 +516,8 @@ const App: React.FC = () => {
 
       <section className="text-center pt-4">
         <p className="text-sm text-[#49454F]">程序版本</p>
-        <p className="text-base font-medium">Transistor Web v4.2.6</p>
-        <p className="text-xs text-[#49454F] mt-1">"Ashes to Ashes"</p>
+        <p className="text-base font-medium">Transistor Web v4.3.1</p>
+        <p className="text-xs text-[#49454F] mt-1">"Immersion Edition"</p>
       </section>
     </div>
   );
@@ -521,7 +549,7 @@ const App: React.FC = () => {
           </div>
 
           <div className="w-full max-w-xs flex items-center justify-center gap-8">
-            <button onClick={() => togglePlay()} className="w-20 h-20 bg-[#D0BCFF] text-[#381E72] rounded-full flex items-center justify-center shadow-xl">
+            <button onClick={() => togglePlay()} className="w-20 h-20 bg-primaryActive text-onPrimaryContainer rounded-full flex items-center justify-center shadow-xl">
               {isPlaying ? <Icons.Pause className="w-10 h-10" /> : <Icons.Play className="w-10 h-10 ml-1" />}
             </button>
           </div>
@@ -534,7 +562,7 @@ const App: React.FC = () => {
                 min="0" max="1" step="0.01" 
                 value={volume} 
                 onChange={e => setVolume(parseFloat(e.target.value))}
-                className="flex-1 accent-[#D0BCFF] h-1.5 rounded-full appearance-none bg-white/20"
+                className="flex-1 accent-primaryActive h-1.5 rounded-full appearance-none bg-white/20"
               />
             </div>
           </div>
@@ -542,7 +570,7 @@ const App: React.FC = () => {
 
         <div className="grid grid-cols-4 gap-4 mt-auto">
           <button onClick={() => setSleepTimer(prev => prev ? null : 30)} className="flex flex-col items-center gap-1 p-2">
-            <Icons.Timer className={`w-6 h-6 ${sleepTimer ? 'text-[#D0BCFF]' : 'text-white/70'}`} />
+            <Icons.Timer className={`w-6 h-6 ${sleepTimer ? 'text-primaryActive' : 'text-white/70'}`} />
             <span className="text-[10px] uppercase font-medium tracking-widest">{sleepTimer ? `${sleepTimer}m` : '定时'}</span>
           </button>
           <button onClick={() => setCurrentView('ADD')} className="flex flex-col items-center gap-1 p-2">
@@ -564,7 +592,7 @@ const App: React.FC = () => {
             <span className="text-[10px] uppercase font-medium tracking-widest">分享</span>
           </button>
           <button onClick={() => toggleFavorite(activeStation.id)} className="flex flex-col items-center gap-1 p-2">
-            <Icons.Star className={`w-6 h-6 ${activeStation.isFavorite ? 'text-[#D0BCFF]' : 'text-white/70'}`} active={activeStation.isFavorite} />
+            <Icons.Star className={`w-6 h-6 ${activeStation.isFavorite ? 'text-primaryActive' : 'text-white/70'}`} active={activeStation.isFavorite} />
             <span className="text-[10px] uppercase font-medium tracking-widest">收藏</span>
           </button>
         </div>
@@ -573,14 +601,33 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen max-w-2xl mx-auto flex flex-col bg-[#F7F2FA]">
+    <div className="min-h-screen max-w-2xl mx-auto flex flex-col bg-surface transition-colors duration-500">
+      <style>{`
+        :root {
+          --md-sys-color-primary: ${activePalette.primary};
+          --md-sys-color-primary-container: ${activePalette.container};
+          --md-sys-color-on-primary-container: ${activePalette.onContainer};
+          --md-sys-color-surface: ${activePalette.surface};
+          --md-sys-color-primary-active: ${settings.themeColor === 'purple' ? '#D0BCFF' : (settings.themeColor === 'blue' ? '#D1E4FF' : (settings.themeColor === 'green' ? '#98FB9D' : (settings.themeColor === 'red' ? '#FFDAD6' : '#FFDDB3')))};
+        }
+        .text-primary { color: var(--md-sys-color-primary); }
+        .bg-primary { background-color: var(--md-sys-color-primary); }
+        .bg-primaryContainer { background-color: var(--md-sys-color-primary-container); }
+        .text-onPrimaryContainer { color: var(--md-sys-color-on-primary-container); }
+        .bg-primaryActive { background-color: var(--md-sys-color-primary-active); }
+        .text-primaryActive { color: var(--md-sys-color-primary-active); }
+        .accent-primaryActive { accent-color: var(--md-sys-color-primary-active); }
+        .focus-ring-primary:focus { --tw-ring-color: var(--md-sys-color-primary); }
+        .bg-surface { background-color: var(--md-sys-color-surface); }
+      `}</style>
+      
       <Header />
       
       <main className="flex-1 overflow-y-auto">
         {currentView === 'LIST' && (
           <div className="pb-24">
             <div className="px-4 py-4 flex gap-2 overflow-x-auto no-scrollbar">
-              <button className="px-4 py-2 bg-[#EADDFF] text-[#21005D] rounded-full text-sm font-medium whitespace-nowrap">全部电台</button>
+              <button className="px-4 py-2 bg-primaryContainer text-onPrimaryContainer rounded-full text-sm font-medium whitespace-nowrap">全部电台</button>
               <button className="px-4 py-2 bg-[#ECE6F0] text-[#49454F] rounded-full text-sm font-medium whitespace-nowrap">我的收藏</button>
               <button className="px-4 py-2 bg-[#ECE6F0] text-[#49454F] rounded-full text-sm font-medium whitespace-nowrap">最近播放</button>
             </div>
@@ -593,14 +640,14 @@ const App: React.FC = () => {
                 <p className="text-[#49454F]">尚未添加电台，快去添加吧！</p>
                 <button 
                   onClick={() => setCurrentView('ADD')}
-                  className="bg-[#6750A4] text-white px-8 py-3 rounded-full font-medium"
+                  className="bg-primary text-white px-8 py-3 rounded-full font-medium"
                 >
                   添加新电台
                 </button>
               </div>
             ) : (
               <div className="divide-y divide-[#E7E0EC]">
-                {stations.map(station => (
+                {sortedStations.map(station => (
                   <StationCard key={station.id} station={station} />
                 ))}
               </div>
