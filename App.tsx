@@ -25,11 +25,16 @@ const App: React.FC = () => {
   const [searchResults, setSearchResults] = useState<Station[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
+  // System Dark Mode Detection
+  const [isSystemDark, setIsSystemDark] = useState(
+    window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+  );
+
   // Refs
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const sleepTimerRef = useRef<number | null>(null);
 
-  // Persistence
+  // Persistence & Dark Mode Listener
   useEffect(() => {
     const savedStations = localStorage.getItem('transistor_stations');
     if (savedStations) {
@@ -39,6 +44,13 @@ const App: React.FC = () => {
     if (savedSettings) {
       setSettings(p => ({ ...p, ...JSON.parse(savedSettings) }));
     }
+
+    const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleDarkModeChange = (e: MediaQueryListEvent) => {
+      setIsSystemDark(e.matches);
+    };
+    darkModeMediaQuery.addEventListener('change', handleDarkModeChange);
+    return () => darkModeMediaQuery.removeEventListener('change', handleDarkModeChange);
   }, []);
 
   useEffect(() => {
@@ -173,26 +185,19 @@ const App: React.FC = () => {
     }
   };
 
-  // Sorted list logic: Favorites first, then by date added (newest first)
-  const sortedStations = [...stations].sort((a, b) => {
-    if (a.isFavorite !== b.isFavorite) {
-      return a.isFavorite ? -1 : 1;
-    }
-    return b.addedAt - a.addedAt;
-  });
-
-  const activePalette = THEME_PALETTES[settings.themeColor];
+  // Resolve palette - switch to black if system is dark
+  const activePalette = isSystemDark ? THEME_PALETTES['black'] : THEME_PALETTES[settings.themeColor];
 
   // Rendering Components
   const Header = () => (
-    <div className="sticky top-0 z-20 flex items-center justify-between px-4 h-16 bg-surface border-b border-[#E7E0EC]">
+    <div className="sticky top-0 z-20 flex items-center justify-between px-4 h-16 bg-surface border-b border-theme transition-colors duration-500">
       <div className="flex items-center gap-4">
         {currentView !== 'LIST' && (
-          <button onClick={() => setCurrentView('LIST')} className="p-2 rounded-full hover:bg-black/5">
+          <button onClick={() => setCurrentView('LIST')} className="p-2 rounded-full hover:bg-black/5 text-primary">
             <Icons.ChevronLeft className="w-6 h-6" />
           </button>
         )}
-        <h1 className="text-xl font-medium tracking-tight">
+        <h1 className="text-xl font-medium tracking-tight text-primary">
           {currentView === 'LIST' ? 'Transistor' : 
            currentView === 'ADD' ? '添加新电台' : 
            currentView === 'SETTINGS' ? '设置' : '正在播放'}
@@ -204,7 +209,7 @@ const App: React.FC = () => {
             <button onClick={() => setCurrentView('ADD')} className="p-3 rounded-full hover:bg-black/5 text-primary">
               <Icons.Plus className="w-6 h-6" />
             </button>
-            <button onClick={() => setCurrentView('SETTINGS')} className="p-3 rounded-full hover:bg-black/5">
+            <button onClick={() => setCurrentView('SETTINGS')} className="p-3 rounded-full hover:bg-black/5 text-primary">
               <Icons.Settings className="w-6 h-6" />
             </button>
           </>
@@ -214,10 +219,9 @@ const App: React.FC = () => {
   );
 
   const StationCard: React.FC<{ station: Station }> = ({ station }) => (
-    <div className="flex items-center gap-4 p-4 hover:bg-black/5 group transition-colors">
+    <div className="flex items-center gap-4 p-4 hover:bg-black/5 group transition-colors cursor-pointer" onClick={() => togglePlay(station)}>
       <div 
         className={`flex-shrink-0 w-12 h-12 flex items-center justify-center bg-primaryContainer text-onPrimaryContainer ${settings.iconStyle === 'circle' ? 'rounded-full' : 'rounded-lg'}`}
-        onClick={() => togglePlay(station)}
       >
         {station.iconUrl ? (
           <img src={station.iconUrl} alt="" className="w-full h-full object-cover rounded-inherit" onError={(e) => (e.currentTarget.style.display = 'none')} />
@@ -225,16 +229,16 @@ const App: React.FC = () => {
           <Icons.Radio className="w-6 h-6" />
         )}
       </div>
-      <div className="flex-1 min-w-0" onClick={() => togglePlay(station)}>
-        <h3 className="text-base font-medium truncate">{station.name}</h3>
+      <div className="flex-1 min-w-0">
+        <h3 className="text-base font-medium truncate text-primary">{station.name}</h3>
         {settings.showStreamUrl && (
-          <p className="text-sm text-[#49454F] truncate">{station.url}</p>
+          <p className="text-sm text-secondary truncate">{station.url}</p>
         )}
       </div>
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
         <button 
           onClick={() => toggleFavorite(station.id)}
-          className={`p-2 rounded-full hover:bg-black/5 ${station.isFavorite ? 'text-primary' : 'text-[#49454F]'}`}
+          className={`p-2 rounded-full hover:bg-black/5 ${station.isFavorite ? 'text-primary' : 'text-secondary'}`}
         >
           <Icons.Star className="w-5 h-5" active={station.isFavorite} />
         </button>
@@ -256,11 +260,11 @@ const App: React.FC = () => {
     if (!activeStation) return null;
     return (
       <div 
-        className="fixed bottom-0 left-0 right-0 bg-[#211F26] text-white p-3 flex items-center justify-between z-30 cursor-pointer shadow-lg"
+        className="fixed bottom-0 left-0 right-0 bg-primaryContainer text-onPrimaryContainer p-3 flex items-center justify-between z-30 cursor-pointer shadow-lg border-t border-theme transition-colors duration-500"
         onClick={() => setCurrentView('FULL_PLAYER')}
       >
         <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div className="w-10 h-10 bg-[#49454F] rounded-full flex items-center justify-center overflow-hidden">
+          <div className="w-10 h-10 bg-surface rounded-full flex items-center justify-center overflow-hidden border border-theme">
             {activeStation.iconUrl ? (
               <img src={activeStation.iconUrl} alt="" className="w-full h-full object-cover" />
             ) : (
@@ -269,14 +273,14 @@ const App: React.FC = () => {
           </div>
           <div className="flex flex-col min-w-0">
             <span className="text-sm font-medium truncate">{activeStation.name}</span>
-            <span className="text-xs text-white/70">{isPlaying ? '正在播放' : '已暂停'}</span>
+            <span className="text-xs opacity-70">{isPlaying ? '正在播放' : '已暂停'}</span>
           </div>
         </div>
         <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
           <button onClick={() => setSleepTimer(prev => prev ? null : 30)} className="p-2">
-            <Icons.Timer className={`w-6 h-6 ${sleepTimer ? 'text-primaryActive' : 'text-white/70'}`} />
+            <Icons.Timer className={`w-6 h-6 ${sleepTimer ? 'text-primary' : 'opacity-70'}`} />
           </button>
-          <button onClick={() => togglePlay()} className="p-2 bg-primaryActive text-onPrimaryContainer rounded-full">
+          <button onClick={() => togglePlay()} className="p-2 bg-primary text-surface rounded-full transition-transform active:scale-90">
             {isPlaying ? <Icons.Pause className="w-6 h-6" /> : <Icons.Play className="w-6 h-6" />}
           </button>
         </div>
@@ -292,15 +296,15 @@ const App: React.FC = () => {
 
     return (
       <div className="p-4 space-y-6 pb-24">
-        <div className="flex bg-[#E7E0EC] rounded-full p-1">
+        <div className="flex bg-theme rounded-full p-1 transition-colors">
           <button 
-            className={`flex-1 py-2 rounded-full text-sm font-medium ${tab === 'search' ? 'bg-[#FFFFFF] shadow-sm' : ''}`}
+            className={`flex-1 py-2 rounded-full text-sm font-medium transition-all ${tab === 'search' ? 'bg-surface shadow-sm text-primary' : 'text-secondary'}`}
             onClick={() => setTab('search')}
           >
             搜索
           </button>
           <button 
-            className={`flex-1 py-2 rounded-full text-sm font-medium ${tab === 'manual' ? 'bg-[#FFFFFF] shadow-sm' : ''}`}
+            className={`flex-1 py-2 rounded-full text-sm font-medium transition-all ${tab === 'manual' ? 'bg-surface shadow-sm text-primary' : 'text-secondary'}`}
             onClick={() => setTab('manual')}
           >
             手动
@@ -313,15 +317,15 @@ const App: React.FC = () => {
               <input 
                 type="text" 
                 placeholder="搜索电台名称..." 
-                className="w-full h-14 bg-[#ECE6F0] rounded-xl px-4 pl-12 focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full h-14 bg-theme text-primary rounded-xl px-4 pl-12 focus:outline-none focus:ring-2 focus:ring-primary transition-all placeholder:opacity-50"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && searchStations(searchQuery)}
               />
-              <Icons.Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#49454F]" />
+              <Icons.Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-secondary" />
               <button 
                 onClick={() => searchStations(searchQuery)}
-                className="absolute right-2 top-2 h-10 px-4 bg-primary text-white rounded-lg text-sm font-medium"
+                className="absolute right-2 top-2 h-10 px-4 bg-primary text-surface rounded-lg text-sm font-medium"
               >
                 搜索
               </button>
@@ -329,15 +333,15 @@ const App: React.FC = () => {
             
             <div className="space-y-2">
               {isSearching ? (
-                <p className="text-center py-8 text-[#49454F]">正在搜索...</p>
+                <p className="text-center py-8 text-secondary">正在搜索...</p>
               ) : searchResults.map(res => (
-                <div key={res.id} className="flex items-center gap-4 p-3 bg-white rounded-xl shadow-sm border border-[#E7E0EC]">
+                <div key={res.id} className="flex items-center gap-4 p-3 bg-surface rounded-xl shadow-sm border border-theme">
                   <div className="w-10 h-10 bg-primaryContainer rounded-lg overflow-hidden flex-shrink-0">
                     <img src={res.iconUrl} className="w-full h-full object-cover" onError={(e) => e.currentTarget.src = ''} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate">{res.name}</div>
-                    <div className="text-xs text-[#49454F] truncate">{res.notes}</div>
+                    <div className="font-medium truncate text-primary">{res.name}</div>
+                    <div className="text-xs text-secondary truncate">{res.notes}</div>
                   </div>
                   <button 
                     onClick={() => addStation(res)}
@@ -352,34 +356,34 @@ const App: React.FC = () => {
         ) : (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-[#49454F] mb-1">电台名称</label>
+              <label className="block text-sm font-medium text-secondary mb-1">电台名称</label>
               <input 
                 type="text" 
-                className="w-full h-14 bg-[#ECE6F0] rounded-xl px-4 focus:outline-none" 
+                className="w-full h-14 bg-theme text-primary rounded-xl px-4 focus:outline-none" 
                 value={name}
                 onChange={e => setName(e.target.value)}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-[#49454F] mb-1">流媒体 URL</label>
+              <label className="block text-sm font-medium text-secondary mb-1">流媒体 URL</label>
               <input 
                 type="text" 
-                className="w-full h-14 bg-[#ECE6F0] rounded-xl px-4 focus:outline-none" 
+                className="w-full h-14 bg-theme text-primary rounded-xl px-4 focus:outline-none" 
                 value={url}
                 onChange={e => setUrl(e.target.value)}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-[#49454F] mb-1">图标 URL (可选)</label>
+              <label className="block text-sm font-medium text-secondary mb-1">图标 URL (可选)</label>
               <input 
                 type="text" 
-                className="w-full h-14 bg-[#ECE6F0] rounded-xl px-4 focus:outline-none" 
+                className="w-full h-14 bg-theme text-primary rounded-xl px-4 focus:outline-none" 
                 value={iconUrl}
                 onChange={e => setIconUrl(e.target.value)}
               />
             </div>
             <button 
-              className="w-full h-14 bg-primary text-white rounded-full font-medium"
+              className="w-full h-14 bg-primary text-surface rounded-full font-medium"
               onClick={() => addStation({ name, url, iconUrl })}
             >
               保存电台
@@ -397,18 +401,18 @@ const App: React.FC = () => {
         <div className="space-y-6">
           <div className="flex flex-col gap-4">
             <div className="flex items-center gap-4">
-              <Icons.Palette className="w-6 h-6 text-[#49454F]" />
+              <Icons.Palette className="w-6 h-6 text-secondary" />
               <div>
-                <p className="font-medium">主题颜色</p>
-                <p className="text-sm text-[#49454F]">选择应用的主题色调</p>
+                <p className="font-medium text-primary">主题颜色</p>
+                <p className="text-sm text-secondary">选择应用的主题色调 (浅色模式生效)</p>
               </div>
             </div>
-            <div className="flex gap-3 px-1">
-              {(Object.keys(THEME_PALETTES) as ThemeColor[]).map((color) => (
+            <div className="flex gap-3 px-1 overflow-x-auto no-scrollbar pb-2">
+              {(Object.keys(THEME_PALETTES) as ThemeColor[]).filter(c => c !== 'black').map((color) => (
                 <button
                   key={color}
                   onClick={() => setSettings(p => ({ ...p, themeColor: color }))}
-                  className={`w-10 h-10 rounded-full border-4 transition-transform active:scale-90 ${
+                  className={`w-10 h-10 rounded-full border-4 flex-shrink-0 transition-transform active:scale-90 ${
                     settings.themeColor === color ? 'border-primary' : 'border-transparent'
                   }`}
                   style={{ backgroundColor: THEME_PALETTES[color].primary }}
@@ -416,35 +420,38 @@ const App: React.FC = () => {
                 />
               ))}
             </div>
+            {isSystemDark && (
+              <p className="text-xs text-secondary italic">系统深色模式已激活：当前强制开启“黑色”主题。</p>
+            )}
           </div>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Icons.Plus className="w-6 h-6 text-[#49454F]" />
+              <Icons.Plus className="w-6 h-6 text-secondary" />
               <div>
-                <p className="font-medium">图标样式</p>
-                <p className="text-sm text-[#49454F]">当前: {settings.iconStyle === 'circle' ? '圆形' : '方形'}</p>
+                <p className="font-medium text-primary">图标样式</p>
+                <p className="text-sm text-secondary">当前: {settings.iconStyle === 'circle' ? '圆形' : '方形'}</p>
               </div>
             </div>
             <button 
               onClick={() => setSettings(p => ({...p, iconStyle: p.iconStyle === 'circle' ? 'square' : 'circle'}))}
-              className="px-4 py-2 bg-primaryContainer text-onPrimaryContainer rounded-full text-sm font-medium"
+              className="px-4 py-2 bg-primaryContainer text-onPrimaryContainer rounded-full text-sm font-medium transition-colors"
             >
               切换
             </button>
           </div>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Icons.Radio className="w-6 h-6 text-[#49454F]" />
+              <Icons.Radio className="w-6 h-6 text-secondary" />
               <div>
-                <p className="font-medium">显示流链接</p>
-                <p className="text-sm text-[#49454F]">在列表中显示 URL</p>
+                <p className="font-medium text-primary">显示流链接</p>
+                <p className="text-sm text-secondary">在列表中显示 URL</p>
               </div>
             </div>
             <input 
               type="checkbox" 
               checked={settings.showStreamUrl}
               onChange={() => setSettings(p => ({...p, showStreamUrl: !p.showStreamUrl}))}
-              className="w-12 h-6 appearance-none bg-[#ECE6F0] rounded-full checked:bg-primary relative transition-colors cursor-pointer before:content-[''] before:absolute before:w-5 before:h-5 before:bg-white before:rounded-full before:top-0.5 before:left-0.5 before:transition-transform checked:before:translate-x-6"
+              className="w-12 h-6 appearance-none bg-theme rounded-full checked:bg-primary relative transition-colors cursor-pointer before:content-[''] before:absolute before:w-5 before:h-5 before:bg-white before:rounded-full before:top-0.5 before:left-0.5 before:transition-transform checked:before:translate-x-6"
             />
           </div>
         </div>
@@ -454,7 +461,7 @@ const App: React.FC = () => {
         <h2 className="text-primary text-sm font-medium mb-4 uppercase tracking-wider">存储</h2>
         <div className="space-y-4">
           <button 
-            className="w-full p-4 bg-white border border-[#E7E0EC] rounded-xl text-left flex items-center gap-4"
+            className="w-full p-4 bg-surface border border-theme rounded-xl text-left flex items-center gap-4"
             onClick={() => {
               const data = JSON.stringify(stations);
               const blob = new Blob([data], {type: 'application/json'});
@@ -465,14 +472,14 @@ const App: React.FC = () => {
               a.click();
             }}
           >
-            <Icons.Share className="w-6 h-6 text-[#49454F]" />
+            <Icons.Share className="w-6 h-6 text-secondary" />
             <div>
-              <p className="font-medium">备份电台</p>
-              <p className="text-sm text-[#49454F]">导出所有电台数据</p>
+              <p className="font-medium text-primary">备份电台</p>
+              <p className="text-sm text-secondary">导出所有电台数据</p>
             </div>
           </button>
           <button 
-            className="w-full p-4 bg-white border border-[#E7E0EC] rounded-xl text-left flex items-center gap-4"
+            className="w-full p-4 bg-surface border border-theme rounded-xl text-left flex items-center gap-4"
             onClick={() => {
               const input = document.createElement('input');
               input.type = 'file';
@@ -490,10 +497,10 @@ const App: React.FC = () => {
               input.click();
             }}
           >
-            <Icons.Plus className="w-6 h-6 text-[#49454F]" />
+            <Icons.Plus className="w-6 h-6 text-secondary" />
             <div>
-              <p className="font-medium">恢复电台</p>
-              <p className="text-sm text-[#49454F]">从 JSON 文件导入</p>
+              <p className="font-medium text-primary">恢复电台</p>
+              <p className="text-sm text-secondary">从 JSON 文件导入</p>
             </div>
           </button>
           <button 
@@ -515,9 +522,9 @@ const App: React.FC = () => {
       </section>
 
       <section className="text-center pt-4">
-        <p className="text-sm text-[#49454F]">程序版本</p>
-        <p className="text-base font-medium">Transistor Web v4.3.1</p>
-        <p className="text-xs text-[#49454F] mt-1">"Immersion Edition"</p>
+        <p className="text-sm text-secondary">程序版本</p>
+        <p className="text-base font-medium text-primary">Transistor Web v4.4.0</p>
+        <p className="text-xs text-secondary mt-1">"Adaptive Noir Edition"</p>
       </section>
     </div>
   );
@@ -525,7 +532,7 @@ const App: React.FC = () => {
   const FullPlayerView = () => {
     if (!activeStation) return null;
     return (
-      <div className="fixed inset-0 bg-[#211F26] text-white z-50 flex flex-col p-6 animate-slide-up">
+      <div className="fixed inset-0 bg-[#000000] text-white z-50 flex flex-col p-6 animate-slide-up overflow-y-auto">
         <div className="flex items-center justify-between mb-8">
           <button onClick={() => setCurrentView('LIST')} className="p-2">
             <Icons.ChevronLeft className="w-6 h-6" />
@@ -540,16 +547,16 @@ const App: React.FC = () => {
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center space-y-12">
-          <div className={`w-64 h-64 bg-[#49454F] shadow-2xl flex items-center justify-center overflow-hidden ${settings.iconStyle === 'circle' ? 'rounded-full' : 'rounded-3xl'}`}>
+          <div className={`w-64 h-64 bg-theme shadow-2xl flex items-center justify-center overflow-hidden border border-white/10 ${settings.iconStyle === 'circle' ? 'rounded-full' : 'rounded-3xl'}`}>
             {activeStation.iconUrl ? (
-              <img src={activeStation.iconUrl} alt="" className="w-full h-full object-cover" />
+              <img src={activeStation.iconUrl} alt="" className="w-full h-full object-cover rounded-inherit" />
             ) : (
               <Icons.Radio className="w-24 h-24 text-white/20" />
             )}
           </div>
 
           <div className="w-full max-w-xs flex items-center justify-center gap-8">
-            <button onClick={() => togglePlay()} className="w-20 h-20 bg-primaryActive text-onPrimaryContainer rounded-full flex items-center justify-center shadow-xl">
+            <button onClick={() => togglePlay()} className="w-20 h-20 bg-primary text-surface rounded-full flex items-center justify-center shadow-xl transition-transform active:scale-90">
               {isPlaying ? <Icons.Pause className="w-10 h-10" /> : <Icons.Play className="w-10 h-10 ml-1" />}
             </button>
           </div>
@@ -562,7 +569,7 @@ const App: React.FC = () => {
                 min="0" max="1" step="0.01" 
                 value={volume} 
                 onChange={e => setVolume(parseFloat(e.target.value))}
-                className="flex-1 accent-primaryActive h-1.5 rounded-full appearance-none bg-white/20"
+                className="flex-1 accent-primary h-1.5 rounded-full appearance-none bg-white/20"
               />
             </div>
           </div>
@@ -570,7 +577,7 @@ const App: React.FC = () => {
 
         <div className="grid grid-cols-4 gap-4 mt-auto">
           <button onClick={() => setSleepTimer(prev => prev ? null : 30)} className="flex flex-col items-center gap-1 p-2">
-            <Icons.Timer className={`w-6 h-6 ${sleepTimer ? 'text-primaryActive' : 'text-white/70'}`} />
+            <Icons.Timer className={`w-6 h-6 ${sleepTimer ? 'text-primary' : 'text-white/70'}`} />
             <span className="text-[10px] uppercase font-medium tracking-widest">{sleepTimer ? `${sleepTimer}m` : '定时'}</span>
           </button>
           <button onClick={() => setCurrentView('ADD')} className="flex flex-col items-center gap-1 p-2">
@@ -580,7 +587,7 @@ const App: React.FC = () => {
           <button 
             onClick={() => {
               if (navigator.share) {
-                navigator.share({ title: activeStation.name, url: activeStation.url });
+                navigator.share({ title: activeStation.name, url: activeStation.url }).catch(() => {});
               } else {
                 navigator.clipboard.writeText(activeStation.url);
                 alert('URL copied to clipboard');
@@ -592,7 +599,7 @@ const App: React.FC = () => {
             <span className="text-[10px] uppercase font-medium tracking-widest">分享</span>
           </button>
           <button onClick={() => toggleFavorite(activeStation.id)} className="flex flex-col items-center gap-1 p-2">
-            <Icons.Star className={`w-6 h-6 ${activeStation.isFavorite ? 'text-primaryActive' : 'text-white/70'}`} active={activeStation.isFavorite} />
+            <Icons.Star className={`w-6 h-6 ${activeStation.isFavorite ? 'text-primary' : 'text-white/70'}`} active={activeStation.isFavorite} />
             <span className="text-[10px] uppercase font-medium tracking-widest">收藏</span>
           </button>
         </div>
@@ -608,8 +615,11 @@ const App: React.FC = () => {
           --md-sys-color-primary-container: ${activePalette.container};
           --md-sys-color-on-primary-container: ${activePalette.onContainer};
           --md-sys-color-surface: ${activePalette.surface};
-          --md-sys-color-primary-active: ${settings.themeColor === 'purple' ? '#D0BCFF' : (settings.themeColor === 'blue' ? '#D1E4FF' : (settings.themeColor === 'green' ? '#98FB9D' : (settings.themeColor === 'red' ? '#FFDAD6' : '#FFDDB3')))};
+          --md-sys-color-border: ${activePalette.border};
+          --md-sys-color-text-secondary: ${activePalette.textSecondary};
+          --md-sys-color-primary-active: ${activePalette.primaryActive};
         }
+        body { background-color: var(--md-sys-color-surface); transition: background-color 0.5s ease; }
         .text-primary { color: var(--md-sys-color-primary); }
         .bg-primary { background-color: var(--md-sys-color-primary); }
         .bg-primaryContainer { background-color: var(--md-sys-color-primary-container); }
@@ -619,6 +629,9 @@ const App: React.FC = () => {
         .accent-primaryActive { accent-color: var(--md-sys-color-primary-active); }
         .focus-ring-primary:focus { --tw-ring-color: var(--md-sys-color-primary); }
         .bg-surface { background-color: var(--md-sys-color-surface); }
+        .border-theme { border-color: var(--md-sys-color-border); }
+        .bg-theme { background-color: var(--md-sys-color-border); }
+        .text-secondary { color: var(--md-sys-color-text-secondary); }
       `}</style>
       
       <Header />
@@ -627,28 +640,30 @@ const App: React.FC = () => {
         {currentView === 'LIST' && (
           <div className="pb-24">
             <div className="px-4 py-4 flex gap-2 overflow-x-auto no-scrollbar">
-              <button className="px-4 py-2 bg-primaryContainer text-onPrimaryContainer rounded-full text-sm font-medium whitespace-nowrap">全部电台</button>
-              <button className="px-4 py-2 bg-[#ECE6F0] text-[#49454F] rounded-full text-sm font-medium whitespace-nowrap">我的收藏</button>
-              <button className="px-4 py-2 bg-[#ECE6F0] text-[#49454F] rounded-full text-sm font-medium whitespace-nowrap">最近播放</button>
+              <button className="px-4 py-2 bg-primaryContainer text-onPrimaryContainer rounded-full text-sm font-medium whitespace-nowrap transition-colors">全部电台</button>
+              <button className="px-4 py-2 bg-theme text-secondary rounded-full text-sm font-medium whitespace-nowrap transition-colors">我的收藏</button>
+              <button className="px-4 py-2 bg-theme text-secondary rounded-full text-sm font-medium whitespace-nowrap transition-colors">最近播放</button>
             </div>
             
             {stations.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 px-8 text-center space-y-4">
-                <div className="w-24 h-24 bg-[#E7E0EC] rounded-full flex items-center justify-center">
-                   <Icons.Radio className="w-12 h-12 text-[#49454F]" />
+                <div className="w-24 h-24 bg-theme rounded-full flex items-center justify-center transition-colors">
+                   <Icons.Radio className="w-12 h-12 text-secondary" />
                 </div>
-                <p className="text-[#49454F]">尚未添加电台，快去添加吧！</p>
+                <p className="text-secondary">尚未添加电台，快去添加吧！</p>
                 <button 
                   onClick={() => setCurrentView('ADD')}
-                  className="bg-primary text-white px-8 py-3 rounded-full font-medium"
+                  className="bg-primary text-surface px-8 py-3 rounded-full font-medium transition-colors"
                 >
                   添加新电台
                 </button>
               </div>
             ) : (
-              <div className="divide-y divide-[#E7E0EC]">
+              <div className="divide-y border-theme transition-colors">
                 {sortedStations.map(station => (
-                  <StationCard key={station.id} station={station} />
+                  <div key={station.id} className="border-theme">
+                    <StationCard station={station} />
+                  </div>
                 ))}
               </div>
             )}
@@ -661,16 +676,6 @@ const App: React.FC = () => {
 
       {currentView === 'FULL_PLAYER' && <FullPlayerView />}
       <MiniPlayer />
-
-      <style>{`
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        @keyframes slide-up {
-          from { transform: translateY(100%); }
-          to { transform: translateY(0); }
-        }
-        .animate-slide-up { animation: slide-up 0.3s ease-out; }
-      `}</style>
     </div>
   );
 };

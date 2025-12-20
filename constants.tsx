@@ -95,10 +95,21 @@ export const Icons = {
   )
 };
 
-export const THEME_PALETTES: Record<ThemeColor, { primary: string, container: string, onContainer: string, surface: string }> = {
-  purple: { primary: '#6750A4', container: '#EADDFF', onContainer: '#21005D', surface: '#F7F2FA' },
-  blue: { primary: '#0061A4', container: '#D1E4FF', onContainer: '#001D36', surface: '#F8FBFF' },
-  green: { primary: '#006D32', container: '#98FB9D', onContainer: '#00210A', surface: '#F7FFF7' },
-  red: { primary: '#BA1A1A', container: '#FFDAD6', onContainer: '#410002', surface: '#FFF8F7' },
-  orange: { primary: '#8B5000', container: '#FFDDB3', onContainer: '#2C1600', surface: '#FFF8F2' },
+export interface ThemePalette {
+  primary: string;
+  container: string;
+  onContainer: string;
+  surface: string;
+  border: string;
+  textSecondary: string;
+  primaryActive: string;
+}
+
+export const THEME_PALETTES: Record<ThemeColor, ThemePalette> = {
+  purple: { primary: '#6750A4', container: '#EADDFF', onContainer: '#21005D', surface: '#F7F2FA', border: '#E7E0EC', textSecondary: '#49454F', primaryActive: '#D0BCFF' },
+  blue: { primary: '#0061A4', container: '#D1E4FF', onContainer: '#001D36', surface: '#F8FBFF', border: '#D1E4FF', textSecondary: '#49454F', primaryActive: '#A1C9FF' },
+  green: { primary: '#006D32', container: '#98FB9D', onContainer: '#00210A', surface: '#F7FFF7', border: '#C0EED2', textSecondary: '#49454F', primaryActive: '#7CFF9A' },
+  red: { primary: '#BA1A1A', container: '#FFDAD6', onContainer: '#410002', surface: '#FFF8F7', border: '#FFDAD6', textSecondary: '#49454F', primaryActive: '#FFB4AB' },
+  orange: { primary: '#8B5000', container: '#FFDDB3', onContainer: '#2C1600', surface: '#FFF8F2', border: '#FFDDB3', textSecondary: '#49454F', primaryActive: '#FFB870' },
+  black: { primary: '#FFFFFF', container: '#1C1B1F', onContainer: '#E6E1E5', surface: '#000000', border: '#313033', textSecondary: '#CAC4D0', primaryActive: '#FFFFFF' },
 };

@@ -11,7 +11,7 @@ export interface Station {
 
 export type ViewState = 'LIST' | 'ADD' | 'SETTINGS' | 'FULL_PLAYER';
 
-export type ThemeColor = 'purple' | 'blue' | 'green' | 'red' | 'orange';
+export type ThemeColor = 'purple' | 'blue' | 'green' | 'red' | 'orange' | 'black';
 
 export interface AppSettings {
   theme: 'light' | 'dark' | 'system';
