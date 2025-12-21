@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Transistor Radio - Standalone</title>
-    <!-- 依赖库 -->
+    <!-- 依赖库：使用稳定的 CDN 版本 -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/react@19/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@19/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <style>
@@ -43,9 +43,10 @@
 <body>
     <div id="root"></div>
 
+    <!-- 整合所有逻辑：使用 window 显式访问全局 React 对象 -->
     <script type="text/babel" data-presets="react,typescript">
-        const { useState, useEffect, useRef, useMemo } = React;
-        const { createRoot } = ReactDOM;
+        const { useState, useEffect, useRef, useMemo } = window.React;
+        const { createRoot } = window.ReactDOM;
 
         // --- 常量与主题 ---
         const THEME_PALETTES = {
@@ -279,16 +280,11 @@
             const [form, setForm] = useState({ name: '', url: '' });
             const [query, setQuery] = useState('');
             const [bulkText, setBulkText] = useState('');
-            const [dragOffset, setDragOffset] = useState(0);
-            const [isDragging, setIsDragging] = useState(false);
             const containerRef = useRef(null);
             
-            const activeIdx = TABS.indexOf(tab);
             const inputBg = palette.surface === '#000000' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
             const cardBg = palette.surface === '#000000' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)';
             const pillBg = palette.surface === '#000000' ? '#2c2c2e' : '#FFFFFF';
-
-            const suggestTags = ['流行', '爵士', '古典', '电子', '摇滚', '新闻'];
 
             return (
                 <div ref={containerRef} className="flex-1 flex flex-col p-4 pt-2 space-y-6 animate-fade-in select-none overflow-hidden min-h-0" style={{ backgroundColor: palette.surface }}>
