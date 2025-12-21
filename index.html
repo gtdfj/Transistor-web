@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Transistor Radio - Standalone</title>
-    <!-- 依赖库：使用稳定的 CDN 版本 -->
+    <!-- 依赖库 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -43,12 +43,12 @@
 <body>
     <div id="root"></div>
 
-    <!-- 整合所有逻辑：使用 window 显式访问全局 React 对象 -->
     <script type="text/babel" data-presets="react,typescript">
+        // 使用 window 对象显式引用 UMD 模式下的 React 和 ReactDOM
         const { useState, useEffect, useRef, useMemo } = window.React;
         const { createRoot } = window.ReactDOM;
 
-        // --- 常量与主题 ---
+        // --- 核心常量 ---
         const THEME_PALETTES = {
             purple: { primary: '#6750A4', container: '#FFFFFF', onContainer: '#21005D', surface: '#F7F2FA', border: '#E7E0EC', textSecondary: '#49454F', active: '#6750A4' },
             blue: { primary: '#0061A4', container: '#FFFFFF', onContainer: '#001D36', surface: '#F8FBFF', border: '#D1E4FF', textSecondary: '#49454F', active: '#0061A4' },
@@ -105,8 +105,6 @@
                     <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
                 </svg>
             ),
-            Download: (props) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>,
-            Upload: (props) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>,
             Shield: (props) => (
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
@@ -116,11 +114,6 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
                     <line x1="18" x2="6" y1="6" y2="18"></line>
                     <line x1="6" x2="18" y1="6" y2="18"></line>
-                </svg>
-            ),
-            Flame: (props) => (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-                    <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
                 </svg>
             ),
             AlertTriangle: (props) => (
@@ -305,11 +298,11 @@
                                         <Icons.Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 opacity-40" />
                                         <button onClick={() => searchStations(query)} className="absolute right-1.5 top-1/2 -translate-y-1/2 px-6 h-12 rounded-[20px] text-[14px] font-bold uppercase tracking-widest active:scale-95 transition-all shadow-lg" style={{ backgroundColor: palette.active || palette.primary, color: '#FFFFFF' }}>调谐</button>
                                     </div>
-                                    <div className="flex-1 space-y-3 overflow-y-auto no-scrollbar pb-32">
+                                    <div className="flex-1 space-y-3 overflow-y-auto no-scrollbar pb-32 px-1">
                                         {isSearching ? <div className="text-center py-20 opacity-40 animate-pulse">正在扫描信号谱...</div> : 
                                             searchResults.map(r => (
-                                                <div key={r.url} onClick={() => addStation(r)} className="flex items-center gap-4 p-4 rounded-[24px] shadow-sm active:scale-95 transition-all" style={{ backgroundColor: cardBg }}>
-                                                    <div className="w-12 h-12 rounded-xl overflow-hidden bg-white/5 flex-shrink-0">
+                                                <div key={r.url} onClick={() => addStation(r)} className="flex items-center gap-4 p-4 rounded-[24px] shadow-sm active:scale-[0.98] transition-all" style={{ backgroundColor: cardBg }}>
+                                                    <div className="w-12 h-12 rounded-xl overflow-hidden bg-white/5 flex-shrink-0 border" style={{borderColor: palette.border}}>
                                                         {r.iconUrl ? <img src={r.iconUrl} className="w-full h-full object-cover" /> : <Icons.Radio className="w-full h-full p-3 opacity-10" />}
                                                     </div>
                                                     <div className="flex-1 truncate font-bold text-sm">{r.name}</div>
@@ -317,6 +310,9 @@
                                                 </div>
                                             ))
                                         }
+                                        {!isSearching && searchResults.length === 0 && query && (
+                                            <div className="text-center py-20 opacity-20">未发现信号</div>
+                                        )}
                                     </div>
                                 </div>
                             )}
@@ -331,7 +327,7 @@
                             )}
                             {tab === 'import' && (
                                 <div className="h-full flex flex-col space-y-4">
-                                    <textarea placeholder="#EXTM3U 内容..." className="w-full flex-1 rounded-[24px] p-5 focus:outline-none font-mono text-xs resize-none" style={{ backgroundColor: inputBg, color: palette.primary }} value={bulkText} onChange={e => setBulkText(e.target.value)} />
+                                    <textarea placeholder="#EXTM3U 内容..." className="w-full flex-1 rounded-[24px] p-5 focus:outline-none font-mono text-xs resize-none border-2 focus:border-primary/40" style={{ backgroundColor: inputBg, color: palette.primary, borderColor: 'transparent' }} value={bulkText} onChange={e => setBulkText(e.target.value)} />
                                     <button onClick={() => { const p = parseM3U(bulkText); if(p.length) addStations(p); }} className="w-full h-14 rounded-[28px] font-black uppercase tracking-widest shadow-lg" style={{ backgroundColor: palette.active || palette.primary, color: '#FFFFFF' }}>批量解析</button>
                                 </div>
                             )}
@@ -372,7 +368,7 @@
                 };
                 Object.entries(handlers).forEach(([ev, fn]) => a.addEventListener(ev, fn));
                 
-                const saved = safeStorage.getItem('transistor_v3_data');
+                const saved = safeStorage.getItem('transistor_v3_standalone_v1');
                 if (saved) {
                     try {
                         const parsed = JSON.parse(saved);
@@ -387,7 +383,7 @@
             }, [volume]);
 
             useEffect(() => {
-                if (hasAgreedPrivacy) safeStorage.setItem('transistor_v3_data', JSON.stringify({ stations, settings }));
+                if (hasAgreedPrivacy) safeStorage.setItem('transistor_v3_standalone_v1', JSON.stringify({ stations, settings }));
             }, [stations, settings, hasAgreedPrivacy]);
 
             useEffect(() => {
@@ -435,13 +431,24 @@
             };
 
             const palette = THEME_PALETTES[settings.themeColor] || THEME_PALETTES.purple;
+            const inputBg_App = palette.surface === '#000000' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)';
+
+            const filteredList = useMemo(() => {
+                const q = searchQuery.toLowerCase();
+                return stations
+                    .filter(s => s.name.toLowerCase().includes(q))
+                    .sort((a, b) => (b.isFavorite ? 1 : 0) - (a.isFavorite ? 1 : 0) || b.addedAt - a.addedAt);
+            }, [stations, searchQuery]);
 
             if (privacyRejected) {
                 return (
                     <div className="h-screen w-full flex flex-col items-center justify-center bg-black p-8 text-center space-y-6">
                         <Icons.AlertTriangle className="w-16 h-16 text-amber-500 animate-pulse" />
-                        <h2 className="text-xl font-black text-white uppercase">信号中断</h2>
-                        <button onClick={() => setPrivacyRejected(false)} className="px-8 py-3 bg-white/10 text-white rounded-full text-xs font-bold uppercase">返回审阅</button>
+                        <div className="space-y-2">
+                            <h2 className="text-xl font-black text-white uppercase tracking-tight">信号传输中断</h2>
+                            <p className="text-xs text-white/40">由于未同意隐私协议，收音机已切断与广播网络的物理连接。</p>
+                        </div>
+                        <button onClick={() => setPrivacyRejected(false)} className="px-8 py-3 bg-white/10 text-white rounded-full text-xs font-bold uppercase tracking-widest transition-all">重新审阅</button>
                     </div>
                 );
             }
@@ -451,12 +458,12 @@
                     <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl">
                         <div className="w-full max-w-md bg-white rounded-[40px] p-10 text-center space-y-6">
                             <Icons.Shield className="w-16 h-16 text-purple-600 mx-auto" />
-                            <h2 className="text-2xl font-black text-slate-900">隐私政策</h2>
-                            <p className="text-sm text-slate-500">感谢使用 Transistor。请阅读并同意政策以开启您的收音机之旅。</p>
+                            <h2 className="text-2xl font-black text-slate-900 tracking-tight">隐私政策</h2>
+                            <p className="text-sm text-slate-500 leading-relaxed">感谢使用 Transistor。请阅读并同意政策以开启您的收音机之旅。</p>
                             <a href="https://agreement-drcn.hispace.dbankcloud.cn/index.html?lang=zh&agreementId=1845500060129849728" target="_blank" className="block text-sm font-bold text-purple-600 underline">查看完整政策</a>
-                            <div className="flex flex-col gap-3 pt-4">
-                                <button onClick={() => { safeStorage.setItem('transistor_privacy_agreed', 'true'); setHasAgreedPrivacy(true); }} className="h-14 bg-purple-600 text-white rounded-3xl font-bold uppercase tracking-widest shadow-lg">同意并进入</button>
-                                <button onClick={() => setPrivacyRejected(true)} className="h-14 bg-slate-100 text-slate-500 rounded-3xl font-bold uppercase text-xs">暂不同意</button>
+                            <div className="flex flex-col gap-3 pt-4 w-full">
+                                <button onClick={() => { safeStorage.setItem('transistor_privacy_agreed', 'true'); setHasAgreedPrivacy(true); }} className="h-14 bg-purple-600 text-white rounded-3xl font-bold uppercase tracking-widest shadow-lg active:scale-95 transition-transform">同意并进入</button>
+                                <button onClick={() => setPrivacyRejected(true)} className="h-14 bg-slate-100 text-slate-500 rounded-3xl font-bold uppercase text-xs active:scale-95 transition-transform">暂不同意</button>
                             </div>
                         </div>
                     </div>
@@ -465,56 +472,117 @@
 
             return (
                 <div className="h-screen w-full flex flex-col transition-colors duration-700 overflow-hidden" style={{ backgroundColor: palette.surface, color: palette.primary }}>
-                    <header className="h-16 px-6 flex items-center justify-between border-b backdrop-blur-xl sticky top-0 z-50" style={{ borderColor: palette.border }}>
+                    <header className="h-16 px-6 flex items-center justify-between border-b backdrop-blur-xl sticky top-0 z-50" style={{ borderColor: palette.border, backgroundColor: palette.surface + 'B3' }}>
                         <div className="flex items-center gap-3">
                             {currentView !== 'LIST' && <button onClick={() => setCurrentView('LIST')} className="p-2 -ml-2"><Icons.ChevronLeft className="w-6 h-6" /></button>}
-                            <h1 className="text-xl font-black uppercase tracking-tighter">{currentView === 'LIST' ? 'Transistor' : '添加电台'}</h1>
+                            <h1 className="text-xl font-black uppercase tracking-tighter">{currentView === 'LIST' ? 'Transistor' : currentView === 'ADD' ? '添加' : '设置'}</h1>
                         </div>
-                        {currentView === 'LIST' && <button onClick={() => setCurrentView('ADD')} className="p-2 opacity-60"><Icons.Plus className="w-6 h-6" /></button>}
+                        {currentView === 'LIST' && (
+                            <div className="flex gap-2">
+                                <button onClick={() => setCurrentView('ADD')} className="p-2 opacity-60"><Icons.Plus className="w-6 h-6" /></button>
+                                <button onClick={() => setCurrentView('SETTINGS')} className="p-2 opacity-60"><Icons.Settings className="w-6 h-6" /></button>
+                            </div>
+                        )}
                     </header>
                     <main className="flex-1 overflow-y-auto no-scrollbar relative min-h-0">
                         {currentView === 'LIST' && (
-                            <div className="flex flex-col">
-                                {stations.map(s => (
-                                    <StationItem key={s.addedAt} station={s} isActive={activeStation?.url === s.url} isPlaying={isPlaying} iconStyle={settings.iconStyle} palette={palette} onPlay={playStation} onToggleFavorite={(st) => setStations(prev => prev.map(item => item.url === st.url ? {...item, isFavorite: !item.isFavorite} : item))} onDelete={(st) => setStations(prev => prev.filter(item => item.url !== st.url))} />
+                            <div className="flex flex-col pb-32">
+                                {stations.length > 0 && (
+                                    <div className="p-4 sticky top-0 z-10 border-b backdrop-blur-md" style={{ backgroundColor: palette.surface + 'E6', borderColor: palette.border }}>
+                                        <div className="relative">
+                                            <Icons.Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 opacity-30" />
+                                            <input placeholder="搜索频率..." className="w-full h-11 pl-11 pr-4 rounded-full text-sm focus:outline-none border" style={{ backgroundColor: inputBg_App, borderColor: palette.border, color: palette.primary }} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                                        </div>
+                                    </div>
+                                )}
+                                {filteredList.map(s => (
+                                    <StationItem key={s.addedAt + s.url} station={s} isActive={activeStation?.url === s.url} isPlaying={isPlaying} iconStyle={settings.iconStyle} palette={palette} onPlay={playStation} onToggleFavorite={(st) => setStations(prev => prev.map(item => item.url === st.url ? {...item, isFavorite: !item.isFavorite} : item))} onDelete={(st) => setStations(prev => prev.filter(item => item.url !== st.url))} />
                                 ))}
-                                {stations.length === 0 && <div className="p-20 text-center opacity-20 font-black uppercase tracking-widest">电台库为空</div>}
+                                {stations.length === 0 && (
+                                    <div className="flex flex-col items-center justify-center p-20 text-center space-y-6 opacity-10">
+                                        <Icons.Radio className="w-32 h-32" />
+                                        <div className="font-black uppercase tracking-[0.5em] text-sm">Silence Zone</div>
+                                    </div>
+                                )}
                             </div>
                         )}
-                        {currentView === 'ADD' && <AddView palette={palette} setView={setCurrentView} addStation={s => { setStations(p => [...p, {...s, addedAt: Date.now()}]); setCurrentView('LIST'); }} addStations={list => { setStations(p => [...p, ...list]); setCurrentView('LIST'); }} searchStations={searchRemote} isSearching={isSearching} searchResults={searchResults} />}
+                        {currentView === 'ADD' && <AddView palette={palette} setView={setCurrentView} addStation={s => { setStations(p => [...p, {...s, isFavorite: false, addedAt: Date.now()}]); setCurrentView('LIST'); }} addStations={list => { setStations(p => [...p, ...list]); setCurrentView('LIST'); }} searchStations={searchRemote} isSearching={isSearching} searchResults={searchResults} />}
+                        {currentView === 'SETTINGS' && (
+                            <div className="p-8 space-y-10 animate-fade-in">
+                                <section>
+                                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-4 px-2">视觉主题</h3>
+                                    <div className="grid grid-cols-4 gap-4 p-5 rounded-[40px]" style={{ backgroundColor: inputBg_App }}>
+                                        {Object.keys(THEME_PALETTES).map(c => (
+                                            <button key={c} onClick={() => setSettings(s => ({ ...s, themeColor: c }))} className={`aspect-square rounded-full border-4 transition-transform active:scale-90 ${settings.themeColor === c ? 'scale-110 border-white shadow-xl' : 'opacity-60 border-transparent'}`} style={{ backgroundColor: THEME_PALETTES[c].primary === '#FFFFFF' ? '#121212' : THEME_PALETTES[c].primary }} />
+                                        ))}
+                                    </div>
+                                </section>
+                                <section>
+                                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-4 px-2">图标形状</h3>
+                                    <div className="flex gap-4 p-4 rounded-[32px]" style={{ backgroundColor: inputBg_App }}>
+                                        {['circle', 'square'].map(s => (
+                                            <button key={s} onClick={() => setSettings({ ...settings, iconStyle: s })} className={`flex-1 py-3.5 rounded-2xl font-bold uppercase text-[10px] tracking-widest transition-all ${settings.iconStyle === s ? 'shadow-lg bg-white text-black' : 'opacity-40'}`}>{s === 'circle' ? '圆润' : '几何'}</button>
+                                        ))}
+                                    </div>
+                                </section>
+                                <section className="pt-10 opacity-10 text-center font-black uppercase tracking-[0.6em] text-[9px]">Transistor Standing By</section>
+                            </div>
+                        )}
                     </main>
-                    {activeStation && (
-                        <div onClick={() => setCurrentView('FULL')} className="h-20 border-t flex items-center justify-between px-6 backdrop-blur-2xl shadow-lg" style={{ backgroundColor: palette.container, borderColor: palette.border }}>
+                    {activeStation && currentView !== 'FULL' && (
+                        <div onClick={() => setCurrentView('FULL')} className="fixed bottom-0 left-0 right-0 h-20 border-t flex items-center justify-between px-6 backdrop-blur-2xl shadow-[0_-4px_30px_rgba(0,0,0,0.1)] z-40 animate-slide-up" style={{ backgroundColor: palette.container + 'F2', borderColor: palette.border }}>
                             <div className="flex items-center gap-4 min-w-0">
-                                <div className={`w-12 h-12 flex-shrink-0 border-2 ${settings.iconStyle === 'circle' ? 'rounded-full' : 'rounded-xl'} overflow-hidden`}>
+                                <div className={`w-12 h-12 flex-shrink-0 border-2 ${settings.iconStyle === 'circle' ? 'rounded-full' : 'rounded-xl'} overflow-hidden shadow-sm`} style={{borderColor: palette.border}}>
                                     {activeStation.iconUrl ? <img src={activeStation.iconUrl} className="w-full h-full object-cover" /> : <Icons.Radio className="w-full h-full p-3 opacity-10" />}
                                 </div>
                                 <div className="truncate min-w-0">
                                     <div className="font-black text-sm truncate">{activeStation.name}</div>
-                                    <div className="text-[10px] font-bold uppercase opacity-40">{isLoading ? '信号加载中...' : (hasError ? '连接失败' : '正在直播')}</div>
+                                    <div className="text-[10px] font-bold uppercase opacity-40 flex items-center gap-1.5">
+                                        {isLoading ? <span className="animate-pulse">调谐中...</span> : (hasError ? <span className="text-red-500">信号丢失</span> : '信号同步中')}
+                                    </div>
                                 </div>
                             </div>
-                            <button onClick={e => { e.stopPropagation(); togglePlayback(); }} className="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-xl" style={{ backgroundColor: palette.active }}>
+                            <button onClick={e => { e.stopPropagation(); togglePlayback(); }} className="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-xl active:scale-90 transition-transform" style={{ backgroundColor: palette.active }}>
                                 {isPlaying ? <Icons.Pause className="w-6 h-6" /> : <Icons.Play className="w-6 h-6 ml-0.5" />}
                             </button>
                         </div>
                     )}
-                    {currentView === 'FULL' && (
+                    {currentView === 'FULL' && activeStation && (
                         <div className="fixed inset-0 z-[200] p-10 flex flex-col items-center justify-center space-y-12 animate-slide-up" style={{ backgroundColor: palette.surface }}>
-                            <button onClick={() => setCurrentView('LIST')} className="absolute top-10 left-10 p-4 opacity-40"><Icons.ChevronLeft className="w-8 h-8" /></button>
-                            <div className={`w-64 h-64 shadow-2xl overflow-hidden border-8 transition-all duration-700 ${isPlaying ? 'scale-100' : 'scale-90 opacity-40'} ${settings.iconStyle === 'circle' ? 'rounded-full' : 'rounded-[64px]'}`} style={{ borderColor: palette.container }}>
+                            <button onClick={() => setCurrentView('LIST')} className="absolute top-10 left-10 p-4 opacity-40 active:scale-90 transition-transform"><Icons.ChevronLeft className="w-8 h-8" /></button>
+                            <div className={`w-64 h-64 shadow-2xl overflow-hidden border-8 transition-all duration-700 ${isPlaying ? 'scale-100 rotate-0' : 'scale-90 opacity-40 rotate-1'} ${settings.iconStyle === 'circle' ? 'rounded-full' : 'rounded-[64px]'}`} style={{ borderColor: palette.container }}>
                                 {activeStation.iconUrl ? <img src={activeStation.iconUrl} className="w-full h-full object-cover" /> : <Icons.Radio className="w-full h-full p-20 opacity-5" />}
                             </div>
-                            <div className="text-center space-y-4">
-                                <h2 className="text-3xl font-black tracking-tight">{activeStation.name}</h2>
-                                <p className="text-xs opacity-40 font-mono">{activeStation.url}</p>
+                            <div className="text-center space-y-4 max-w-full">
+                                <h2 className="text-3xl font-black tracking-tight truncate px-4">{activeStation.name}</h2>
+                                <p className="text-xs opacity-40 font-mono truncate max-w-[280px] mx-auto uppercase tracking-tighter">{activeStation.url}</p>
                             </div>
-                            <button onClick={togglePlayback} className="w-24 h-24 rounded-full shadow-2xl flex items-center justify-center text-white active:scale-90 transition-all" style={{ backgroundColor: palette.active }}>
-                                {isPlaying ? <Icons.Pause className="w-10 h-10" /> : <Icons.Play className="w-10 h-10 ml-1" />}
-                            </button>
-                            <div className="w-full max-w-xs flex items-center gap-4 opacity-40">
+                            <div className="flex items-center gap-10">
+                                <button onClick={() => setIsTimerDialogOpen(true)} className="p-4 opacity-40 active:scale-110 transition-transform relative">
+                                    <Icons.Timer className="w-7 h-7" />
+                                    {sleepTimer && <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-primary text-[8px] flex items-center justify-center text-white font-black">{sleepTimer}</span>}
+                                </button>
+                                <button onClick={togglePlayback} className="w-24 h-24 rounded-full shadow-2xl flex items-center justify-center text-white active:scale-90 transition-all" style={{ backgroundColor: palette.active }}>
+                                    {isPlaying ? <Icons.Pause className="w-10 h-10" /> : <Icons.Play className="w-10 h-10 ml-1.5" />}
+                                </button>
+                                <button onClick={() => { if(confirm('从电台库移除？')) { setStations(p => p.filter(i => i.url !== activeStation.url)); setActiveStation(null); setCurrentView('LIST'); audioRef.current?.pause(); } }} className="p-4 opacity-40 active:scale-110 transition-transform"><Icons.Trash className="w-7 h-7" /></button>
+                            </div>
+                            <div className="w-full max-w-xs flex items-center gap-4 opacity-30">
                                 <Icons.Volume2 className="w-5 h-5" />
                                 <input type="range" min="0" max="1" step="0.01" value={volume} onChange={e => setVolume(parseFloat(e.target.value))} className="flex-1 h-1 rounded-full appearance-none bg-current" />
+                            </div>
+                        </div>
+                    )}
+                    {isTimerDialogOpen && (
+                        <div className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-xl p-4 animate-fade-in" onClick={() => setIsTimerDialogOpen(false)}>
+                            <div className="w-full max-w-sm bg-white rounded-[48px] p-8 shadow-2xl space-y-6" style={{backgroundColor: palette.container}} onClick={e => e.stopPropagation()}>
+                                <div className="text-center font-black uppercase tracking-widest text-xs opacity-40">自动休眠设置</div>
+                                <div className="grid grid-cols-3 gap-4">
+                                    {[15, 30, 45, 60, 120, 0].map(m => (
+                                        <button key={m} onClick={() => { setSleepTimer(m || null); setIsTimerDialogOpen(false); }} className={`h-14 rounded-2xl font-black transition-all ${sleepTimer === m && m !== 0 ? 'bg-primary text-white shadow-lg' : 'bg-slate-50 opacity-60'}`}>{m === 0 ? 'OFF' : `${m}m`}</button>
+                                    ))}
+                                </div>
+                                <button onClick={() => setIsTimerDialogOpen(false)} className="w-full py-4 opacity-30 font-bold text-[10px] uppercase tracking-[0.3em]">关闭</button>
                             </div>
                         </div>
                     )}
@@ -522,7 +590,8 @@
             );
         };
 
-        createRoot(document.getElementById('root')).render(<App />);
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>

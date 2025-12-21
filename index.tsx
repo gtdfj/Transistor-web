@@ -1,1 +1,1 @@
-// 逻辑已整合至 index.html
+// All logic integrated into index.html
