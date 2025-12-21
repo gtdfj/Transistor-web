@@ -70,6 +70,11 @@ const Icons = {
             <line x1="18" x2="6" y1="6" y2="18"></line>
             <line x1="6" x2="18" y1="6" y2="18"></line>
         </svg>
+    ),
+    Flame: (props: any) => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+        </svg>
     )
 };
 
@@ -227,8 +232,9 @@ const AddView = ({ addStation, addStations, searchStations, isSearching, searchR
     const directionFixed = useRef<'none' | 'horiz' | 'vert'>('none');
     
     // Theme Colors
-    const inputBg = palette.surface === '#000000' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)';
-    const pillBg = palette.surface === '#000000' ? '#333333' : '#FFFFFF';
+    const inputBg = palette.surface === '#000000' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
+    const cardBg = palette.surface === '#000000' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)';
+    const pillBg = palette.surface === '#000000' ? '#2c2c2e' : '#FFFFFF';
 
     useEffect(() => {
         activeIdxRef.current = activeIdx;
@@ -322,21 +328,23 @@ const AddView = ({ addStation, addStations, searchStations, isSearching, searchR
     }, [layoutWidth]);
 
     const effectiveWidth = layoutWidth || (window.innerWidth - 32);
-    // Indicator math: p-1.5 = 6px padding on left/right.
-    const slotWidth = (effectiveWidth - 12) / TABS.length; 
-    const dragRatio = dragOffset / effectiveWidth;
+    const paddingOffset = 12; // 1.5 * 4 (p-1.5)
+    const slotWidth = (effectiveWidth - paddingOffset) / TABS.length; 
+    const dragRatio = dragOffset / (effectiveWidth || 1);
     const pillTranslateX = 6 + (activeIdx * slotWidth) - (dragRatio * slotWidth);
+
+    const suggestTags = ['流行', '爵士', '古典', '电子', '摇滚', '新闻'];
 
     return (
         <div 
             ref={containerRef}
-            className="flex-1 flex flex-col p-4 pt-1 space-y-6 animate-fade-in select-none overflow-hidden min-h-0" 
+            className="flex-1 flex flex-col p-4 pt-2 space-y-6 animate-fade-in select-none overflow-hidden min-h-0" 
             style={{ backgroundColor: palette.surface }}
         >
-            {/* Tab Bar */}
-            <div className="flex p-1.5 rounded-[24px] relative z-10 overflow-hidden flex-shrink-0" style={{ backgroundColor: inputBg }}>
+            {/* Tab Bar - Enhanced Visually */}
+            <div className="flex p-1.5 rounded-[32px] relative z-10 overflow-hidden flex-shrink-0 backdrop-blur-md shadow-inner" style={{ backgroundColor: inputBg }}>
                 <div 
-                    className={`absolute top-1.5 bottom-1.5 rounded-[20px] shadow-lg ${isDragging ? '' : 'transition-transform duration-300 cubic-bezier(0.2, 0, 0, 1)'}`}
+                    className={`absolute top-1.5 bottom-1.5 rounded-[28px] shadow-sm ${isDragging ? '' : 'transition-transform duration-500 cubic-bezier(0.19, 1, 0.22, 1)'}`}
                     style={{ 
                         left: 0,
                         width: `${slotWidth}px`,
@@ -349,10 +357,10 @@ const AddView = ({ addStation, addStations, searchStations, isSearching, searchR
                     <button 
                         key={t} 
                         onClick={() => { setTab(t); if (navigator.vibrate) navigator.vibrate(5); }} 
-                        className={`flex-1 py-3 rounded-full text-[13px] font-black uppercase tracking-tight transition-all relative z-20 ${tab === t ? 'opacity-100' : 'opacity-40'}`} 
+                        className={`flex-1 py-2.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all relative z-20 ${tab === t ? 'opacity-100 scale-105' : 'opacity-30 scale-100'}`} 
                         style={{ color: palette.primary }}
                     >
-                        {t === 'search' ? '搜索' : t === 'manual' ? '手动' : '导入'}
+                        {t === 'search' ? '探索' : t === 'manual' ? '键入' : '频谱'}
                     </button>
                 ))}
             </div>
@@ -360,7 +368,7 @@ const AddView = ({ addStation, addStations, searchStations, isSearching, searchR
             {/* Main Content Panels Container */}
             <div className="flex-1 overflow-hidden relative min-h-0">
                 <div 
-                    className={`flex h-full will-change-transform ${isDragging ? '' : 'transition-transform duration-300 cubic-bezier(0.2, 0, 0, 1)'}`}
+                    className={`flex h-full will-change-transform ${isDragging ? '' : 'transition-transform duration-500 cubic-bezier(0.19, 1, 0.22, 1)'}`}
                     style={{ 
                         transform: `translateX(calc(-${activeIdx * 100}% + ${dragOffset / (effectiveWidth || 1) * 100}%)) translateZ(0)`,
                         width: '100%'
@@ -368,137 +376,168 @@ const AddView = ({ addStation, addStations, searchStations, isSearching, searchR
                 >
                     <div className="flex h-full w-full flex-shrink-0">
                         {/* Panel 1: Search */}
-                        <div className="w-full h-full flex-shrink-0 flex flex-col px-1 space-y-4 overflow-hidden">
-                            <div className="relative flex-shrink-0">
+                        <div className="w-full h-full flex-shrink-0 flex flex-col px-1 space-y-5 overflow-hidden">
+                            <div className="relative flex-shrink-0 group">
                                 <input 
                                     type="text" 
                                     placeholder="调谐全球电台频率..." 
-                                    className="w-full h-16 rounded-2xl pl-14 pr-24 focus:outline-none transition-all border shadow-sm text-[16px]" 
+                                    className="w-full h-14 rounded-[24px] pl-14 pr-32 focus:outline-none transition-all border-2 text-[15px] shadow-sm group-focus-within:shadow-lg group-focus-within:border-primary/20" 
                                     style={{ 
                                         backgroundColor: inputBg, 
                                         color: palette.primary, 
-                                        borderColor: palette.surface === '#000000' ? '#222' : 'transparent',
+                                        borderColor: palette.surface === '#000000' ? 'rgba(255,255,255,0.05)' : 'transparent',
                                     } as any} 
                                     value={query} 
                                     onChange={e => setQuery(e.target.value)} 
                                     onKeyDown={e => e.key === 'Enter' && searchStations(query)} 
                                 />
-                                <Icons.Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 opacity-40" />
+                                <Icons.Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 opacity-40 transition-colors group-focus-within:text-primary group-focus-within:opacity-100" />
                                 <button 
                                     onClick={() => searchStations(query)} 
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 px-5 h-10 rounded-xl text-xs font-black uppercase tracking-widest active:scale-90 transition-all shadow-md" 
+                                    className="absolute right-1.5 top-1/2 -translate-y-1/2 px-6 h-12 rounded-[20px] text-[14px] font-bold uppercase tracking-widest active:scale-95 transition-all shadow-lg active:shadow-md" 
                                     style={{ backgroundColor: palette.active || palette.primary, color: '#FFFFFF' }}
                                 >
                                     调谐
                                 </button>
                             </div>
-                            <div className="flex-1 space-y-px overflow-y-auto no-scrollbar pb-32">
+                            
+                            {/* Suggestion Chips */}
+                            {!query && !isSearching && searchResults.length === 0 && (
+                                <div className="flex flex-wrap gap-2 px-1">
+                                    <div className="w-full text-[10px] font-bold uppercase tracking-widest opacity-30 mb-1 flex items-center gap-2">
+                                        <Icons.Flame className="w-3 h-3" /> 热门推荐
+                                    </div>
+                                    {suggestTags.map(tag => (
+                                        <button 
+                                            key={tag} 
+                                            onClick={() => { setQuery(tag); searchStations(tag); }}
+                                            className="px-3.5 py-1.5 rounded-full border text-[10px] font-bold opacity-60 hover:opacity-100 active:scale-95 transition-all"
+                                            style={{ backgroundColor: cardBg, borderColor: palette.border }}
+                                        >
+                                            {tag}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
+                            <div className="flex-1 space-y-3 overflow-y-auto no-scrollbar pb-32 px-1">
                                 {isSearching ? (
                                     <div className="text-center py-24 space-y-6 opacity-40 animate-pulse">
-                                        <Icons.Radio className="w-16 h-16 mx-auto" />
-                                        <div className="text-[12px] font-black uppercase tracking-[0.3em]">信号扫描中...</div>
+                                        <div className="w-16 h-16 rounded-full border-4 border-dashed border-primary mx-auto animate-spin p-3.5">
+                                            <Icons.Radio className="w-full h-full" />
+                                        </div>
+                                        <div className="text-[11px] font-black uppercase tracking-[0.4em]">正在扫描信号谱...</div>
                                     </div>
                                 ) : searchResults.length > 0 ? (
                                     searchResults.map((r: any, idx: number) => (
                                         <div 
                                             key={r.id + r.url} 
                                             onClick={() => { addStation(r); if (navigator.vibrate) navigator.vibrate(10); }} 
-                                            className="flex items-center gap-5 p-5 border-b last:border-0 active:bg-white/5 active:scale-[0.98] transition-all group animate-fade-in" 
-                                            style={{ borderColor: palette.border, animationDelay: `${idx * 15}ms` }}
+                                            className="flex items-center gap-4 p-4 rounded-[24px] border border-transparent hover:border-primary/10 active:scale-[0.98] transition-all group animate-fade-in shadow-sm" 
+                                            style={{ backgroundColor: cardBg, animationDelay: `${idx * 15}ms` }}
                                         >
-                                            <div className="w-14 h-14 rounded-2xl overflow-hidden flex-shrink-0 border shadow-inner bg-white/5" style={{ borderColor: palette.border }}>
-                                                {r.iconUrl ? <img src={r.iconUrl} className="w-full h-full object-cover" /> : <Icons.Radio className="w-full h-full p-3.5 opacity-10" />}
+                                            <div className="w-14 h-14 rounded-[18px] overflow-hidden flex-shrink-0 border shadow-inner bg-white/5 relative" style={{ borderColor: palette.border }}>
+                                                {r.iconUrl ? <img src={r.iconUrl} className="w-full h-full object-cover" /> : <Icons.Radio className="w-full h-full p-4 opacity-10" />}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <div className="text-[16px] font-black truncate leading-snug">{r.name}</div>
-                                                <div className="text-[10px] opacity-40 truncate uppercase font-bold tracking-tight" style={{ color: palette.textSecondary }}>{r.notes || '全球广播信号'}</div>
+                                                <div className="text-[14px] font-black truncate leading-tight mb-1">{r.name}</div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[9px] px-2 py-0.5 rounded-md bg-primary/10 text-primary/60 font-black uppercase tracking-tighter">
+                                                        {r.notes || 'Global'}
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <div className="p-2 opacity-10 group-hover:opacity-100 transition-opacity">
-                                                <Icons.Plus className="w-7 h-7" />
-                                            </div>
+                                            <button className="w-9 h-9 rounded-full bg-primary/5 flex items-center justify-center text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <Icons.Plus className="w-5 h-5" />
+                                            </button>
                                         </div>
                                     ))
                                 ) : query && !isSearching ? (
                                     <div className="text-center py-32 opacity-20 space-y-5">
-                                        <div className="text-6xl">📡</div>
-                                        <div className="text-[12px] font-black uppercase tracking-[0.2em]">未捕获到任何有效信号</div>
+                                        <div className="text-5xl animate-bounce">📡</div>
+                                        <div className="text-[11px] font-black uppercase tracking-[0.2em]">频率处于静默区，换个词试试</div>
                                     </div>
                                 ) : (
-                                    <div className="text-center py-32 opacity-10 space-y-6">
-                                        <Icons.Search className="w-20 h-20 mx-auto" />
-                                        <div className="text-[14px] font-black uppercase tracking-[0.5em]">SCAN FOR STATIONS</div>
+                                    <div className="flex-1 flex flex-col items-center justify-center opacity-10 py-20 space-y-6">
+                                        <div className="relative">
+                                            <Icons.Search className="w-20 h-20" />
+                                            <div className="absolute inset-0 bg-primary/10 blur-3xl rounded-full"></div>
+                                        </div>
+                                        <div className="text-[13px] font-black uppercase tracking-[0.5em] text-center">TUNE TO WORLDWIDE</div>
                                     </div>
                                 )}
                             </div>
                         </div>
 
-                        {/* Panel 2: Manual */}
+                        {/* Panel 2: Manual - Card Based Layout */}
                         <div className="w-full h-full flex-shrink-0 px-2 overflow-y-auto no-scrollbar">
-                            <div className="flex flex-col space-y-10 mt-4 pb-32">
-                                <div className="space-y-3 px-1">
-                                    <label className="text-[11px] font-black uppercase tracking-widest opacity-40 ml-2">频率识别标识</label>
-                                    <input 
-                                        placeholder="输入电台呼号或名称..." 
-                                        className="w-full h-16 rounded-[24px] px-7 focus:outline-none transition-all border text-[18px]" 
-                                        style={{ 
-                                            backgroundColor: inputBg, 
-                                            color: palette.primary, 
-                                            borderColor: palette.surface === '#000000' ? '#222' : 'transparent', 
-                                        } as any} 
-                                        value={form.name} 
-                                        onChange={e => setForm({ ...form, name: e.target.value })} 
-                                    />
+                            <div className="flex flex-col space-y-6 mt-4 pb-32">
+                                <div className="p-7 rounded-[36px] border shadow-xl space-y-8" style={{ backgroundColor: cardBg, borderColor: palette.border }}>
+                                    <div className="space-y-3">
+                                        <label className="text-[9px] font-black uppercase tracking-[0.2em] opacity-30 ml-1.5">频率识别标识</label>
+                                        <input 
+                                            placeholder="电台名称" 
+                                            className="w-full h-14 rounded-[20px] px-6 focus:outline-none transition-all border-2 text-[16px] focus:border-primary/40" 
+                                            style={{ 
+                                                backgroundColor: inputBg, 
+                                                color: palette.primary, 
+                                                borderColor: 'transparent', 
+                                            } as any} 
+                                            value={form.name} 
+                                            onChange={e => setForm({ ...form, name: e.target.value })} 
+                                        />
+                                    </div>
+                                    <div className="space-y-3">
+                                        <label className="text-[9px] font-black uppercase tracking-[0.2em] opacity-30 ml-1.5">波段流 URL</label>
+                                        <input 
+                                            placeholder="http://example.com/stream" 
+                                            className="w-full h-14 rounded-[20px] px-6 focus:outline-none transition-all border-2 text-[13px] font-mono focus:border-primary/40" 
+                                            style={{ 
+                                                backgroundColor: inputBg, 
+                                                color: palette.primary, 
+                                                borderColor: 'transparent', 
+                                            } as any} 
+                                            value={form.url} 
+                                            onChange={e => setForm({ ...form, url: e.target.value })} 
+                                        />
+                                    </div>
                                 </div>
-                                <div className="space-y-3 px-1">
-                                    <label className="text-[11px] font-black uppercase tracking-widest opacity-40 ml-2">数据流 URL 地址</label>
-                                    <input 
-                                        placeholder="http://..." 
-                                        className="w-full h-16 rounded-[24px] px-7 focus:outline-none transition-all border text-[14px] font-mono" 
-                                        style={{ 
-                                            backgroundColor: inputBg, 
-                                            color: palette.primary, 
-                                            borderColor: palette.surface === '#000000' ? '#222' : 'transparent', 
-                                        } as any} 
-                                        value={form.url} 
-                                        onChange={e => setForm({ ...form, url: e.target.value })} 
-                                    />
-                                </div>
-                                <div className="px-1">
+                                <div className="px-6">
                                     <button 
                                         onClick={() => { if (form.url) { addStation(form); setView('LIST'); if (navigator.vibrate) navigator.vibrate(12); } }} 
-                                        className="w-full h-20 rounded-[32px] font-black uppercase tracking-[0.3em] shadow-2xl active:scale-95 transition-all text-[16px]" 
+                                        className="w-full h-14 rounded-[28px] font-black uppercase tracking-[0.3em] shadow-lg active:scale-95 transition-all text-[15px]" 
                                         style={{ backgroundColor: palette.active || palette.primary, color: '#FFFFFF' }}
                                     >
-                                        建立信号连接
+                                        建立连接
                                     </button>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Panel 3: Import */}
+                        {/* Panel 3: Import - Card Based Layout */}
                         <div className="w-full h-full flex-shrink-0 px-2 flex flex-col overflow-y-auto no-scrollbar">
-                            <div className="flex flex-col space-y-4 pt-4 pb-32 h-full min-h-[400px]">
-                                <div className="flex-1 flex flex-col space-y-3">
-                                    <label className="text-[11px] font-black uppercase tracking-widest opacity-40 ml-2 flex-shrink-0">M3U 频谱数据</label>
+                            <div className="flex flex-col space-y-6 mt-4 pb-32 h-full">
+                                <div className="flex-1 p-7 rounded-[36px] border shadow-xl flex flex-col space-y-4" style={{ backgroundColor: cardBg, borderColor: palette.border }}>
+                                    <label className="text-[9px] font-black uppercase tracking-[0.2em] opacity-30 ml-1.5 flex-shrink-0">M3U 频谱数据</label>
                                     <textarea 
-                                        placeholder="#EXTM3U&#10;#EXTINF:-1,Station Name&#10;http://... " 
-                                        className="flex-1 w-full rounded-[32px] p-8 focus:outline-none text-[13px] font-mono leading-relaxed resize-none border shadow-inner min-h-[200px]" 
+                                        placeholder="#EXTM3U&#10;#EXTINF:-1,Radio 1&#10;http://... " 
+                                        className="w-full flex-1 rounded-[20px] p-5 focus:outline-none text-[12px] font-mono leading-relaxed resize-none border-2 focus:border-primary/40 shadow-inner" 
                                         style={{ 
                                             backgroundColor: inputBg, 
                                             color: palette.primary, 
-                                            borderColor: palette.surface === '#000000' ? '#222' : palette.border 
+                                            borderColor: 'transparent'
                                         }} 
                                         value={bulkText} 
                                         onChange={e => setBulkText(e.target.value)} 
                                     />
                                 </div>
-                                <div className="flex-shrink-0">
+                                <div className="px-6">
                                     <button 
                                         onClick={() => { const p = parseM3U(bulkText); if (p.length) { addStations(p); setView('LIST'); if (navigator.vibrate) navigator.vibrate(20); } }} 
-                                        className="w-full h-20 rounded-[32px] font-black uppercase tracking-[0.25em] transition-all shadow-2xl active:scale-95 text-[16px]" 
+                                        className="w-full h-14 rounded-[28px] font-black uppercase tracking-[0.3em] transition-all shadow-lg active:scale-95 text-[15px]" 
                                         style={{ backgroundColor: palette.active || palette.primary, color: '#FFFFFF' }}
                                     >
-                                        解析并导入波段
+                                        批量解析
                                     </button>
                                 </div>
                             </div>
@@ -655,7 +694,7 @@ const App = () => {
             <header className="h-16 px-4 flex items-center justify-between border-b backdrop-blur-xl z-50 sticky top-0 flex-shrink-0" style={{ borderColor: palette.border, backgroundColor: palette.surface === '#000000' ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.7)' }}>
                 <div className="flex items-center gap-3">
                     {currentView !== 'LIST' && <button onClick={() => { setCurrentView('LIST'); setSearchQuery(''); }} className="p-2 -ml-2"><Icons.ChevronLeft className="w-6 h-6" /></button>}
-                    <h1 className="text-xl font-black uppercase tracking-tighter">{currentView === 'LIST' ? 'Transistor' : currentView === 'ADD' ? '发现' : '设置'}</h1>
+                    <h1 className="text-xl font-black uppercase tracking-tighter">{currentView === 'LIST' ? 'Transistor' : currentView === 'ADD' ? '添加' : '设置'}</h1>
                 </div>
                 {currentView === 'LIST' && (
                     <div className="flex gap-1">
@@ -695,7 +734,7 @@ const App = () => {
                                     <h2 className="text-2xl font-black tracking-tight">波段处于静默状态</h2>
                                     <p className="text-sm opacity-40">您的收音机还没有收藏任何频率</p>
                                 </div>
-                                <button onClick={() => setCurrentView('ADD')} className="px-12 py-5 rounded-full font-bold uppercase tracking-widest shadow-2xl transition-transform active:scale-95" style={{ backgroundColor: palette.active || palette.primary, color: '#FFFFFF' }}>探索电台</button>
+                                <button onClick={() => setCurrentView('ADD')} className="px-10 py-4 rounded-full font-bold uppercase tracking-widest shadow-xl transition-transform active:scale-95" style={{ backgroundColor: palette.active || palette.primary, color: '#FFFFFF' }}>探索电台</button>
                             </div>
                         )}
                     </div>
@@ -715,15 +754,15 @@ const App = () => {
                             <h3 className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-4 px-2">图标形状</h3>
                             <div className="flex gap-4 p-5 rounded-[40px]" style={{ backgroundColor: inputBg_App }}>
                                 {['circle', 'square'].map(s => (
-                                    <button key={s} onClick={() => setSettings({ ...settings, iconStyle: s })} className={`flex-1 py-4 rounded-3xl font-bold uppercase text-[10px] tracking-widest transition-all ${settings.iconStyle === s ? 'shadow-lg' : 'opacity-40'}`} style={{ backgroundColor: settings.iconStyle === s ? (palette.surface === '#000000' ? palette.border : '#FFFFFF') : 'transparent', color: palette.primary }}>{s === 'circle' ? '圆润' : '几何'}</button>
+                                    <button key={s} onClick={() => setSettings({ ...settings, iconStyle: s })} className={`flex-1 py-3.5 rounded-3xl font-bold uppercase text-[10px] tracking-widest transition-all ${settings.iconStyle === s ? 'shadow-lg' : 'opacity-40'}`} style={{ backgroundColor: settings.iconStyle === s ? (palette.surface === '#000000' ? palette.border : '#FFFFFF') : 'transparent', color: palette.primary }}>{s === 'circle' ? '圆润' : '几何'}</button>
                                 ))}
                             </div>
                         </section>
                         <section>
                             <h3 className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-4 px-2">数据管理</h3>
                             <div className="flex gap-4">
-                                <button onClick={() => { const blob = new Blob([JSON.stringify(stations)], {type: 'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'transistor_backup.json'; a.click(); }} className="flex-1 p-6 rounded-[32px] flex flex-col items-center gap-2 border active:scale-95 transition-transform" style={{ backgroundColor: inputBg_App, borderColor: palette.border }}><Icons.Download className="w-6 h-6" /><span className="text-[10px] font-bold">备份库</span></button>
-                                <button onClick={() => { const i = document.createElement('input'); i.type = 'file'; i.onchange = (e: any) => { const r = new FileReader(); r.onload = ev => { try { const data = JSON.parse(ev.target?.result as string); setStations(data); } catch(e) { alert("文件解析错误"); } }; r.readAsText(e.target.files[0]); }; i.click(); }} className="flex-1 p-6 rounded-[32px] flex flex-col items-center gap-2 border active:scale-95 transition-transform" style={{ backgroundColor: inputBg_App, borderColor: palette.border }}><Icons.Upload className="w-6 h-6" /><span className="text-[10px] font-bold">恢复库</span></button>
+                                <button onClick={() => { const blob = new Blob([JSON.stringify(stations)], {type: 'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'transistor_backup.json'; a.click(); }} className="flex-1 p-4 rounded-[28px] flex flex-col items-center gap-2 border active:scale-95 transition-transform" style={{ backgroundColor: inputBg_App, borderColor: palette.border }}><Icons.Download className="w-5 h-5" /><span className="text-[9px] font-bold">备份库</span></button>
+                                <button onClick={() => { const i = document.createElement('input'); i.type = 'file'; i.onchange = (e: any) => { const r = new FileReader(); r.onload = ev => { try { const data = JSON.parse(ev.target?.result as string); setStations(data); } catch(e) { alert("文件解析错误"); } }; r.readAsText(e.target.files[0]); }; i.click(); }} className="flex-1 p-4 rounded-[28px] flex flex-col items-center gap-2 border active:scale-95 transition-transform" style={{ backgroundColor: inputBg_App, borderColor: palette.border }}><Icons.Upload className="w-5 h-5" /><span className="text-[9px] font-bold">恢复库</span></button>
                             </div>
                         </section>
                         <p className="text-center text-[10px] font-black opacity-10 tracking-[0.5em] pt-12 pb-24 uppercase">Transistor Standing By</p>
@@ -743,8 +782,8 @@ const App = () => {
                     </div>
                     <div className="flex items-center gap-5">
                         <button onClick={e => { e.stopPropagation(); setIsTimerDialogOpen(true); }} className="relative opacity-50 active:scale-90 transition-transform"><Icons.Timer className="w-6 h-6" />{sleepTimer && <span className="absolute -top-2 -right-2 text-[8px] w-4 h-4 rounded-full flex items-center justify-center font-bold" style={{ backgroundColor: palette.active || palette.primary, color: '#FFFFFF' }}>{sleepTimer}</span>}</button>
-                        <button onClick={e => { e.stopPropagation(); if (navigator.vibrate) navigator.vibrate(5); isPlaying ? audioRef.current?.pause() : audioRef.current?.play(); }} className="w-14 h-14 rounded-full flex items-center justify-center shadow-xl active:scale-90 transition-all" style={{ backgroundColor: palette.active || palette.primary, color: '#FFFFFF' }}>
-                            <div className="flex items-center justify-center w-full h-full">{isPlaying ? <Icons.Pause className="w-7 h-7" /> : <Icons.Play className="w-7 h-7 ml-1" />}</div>
+                        <button onClick={e => { e.stopPropagation(); if (navigator.vibrate) navigator.vibrate(5); isPlaying ? audioRef.current?.pause() : audioRef.current?.play(); }} className="w-13 h-13 rounded-full flex items-center justify-center shadow-xl active:scale-90 transition-all" style={{ backgroundColor: palette.active || palette.primary, color: '#FFFFFF' }}>
+                            <div className="flex items-center justify-center w-full h-full">{isPlaying ? <Icons.Pause className="w-6.5 h-6.5" /> : <Icons.Play className="w-6.5 h-6.5 ml-0.5" />}</div>
                         </button>
                     </div>
                 </div>
@@ -756,22 +795,22 @@ const App = () => {
                         <div className="text-[11px] font-black uppercase tracking-[0.5em] opacity-30">Broadcasting</div>
                         <button className="p-4 opacity-30 active:opacity-100 transition-opacity" onClick={() => { if(confirm('确认从收音机中移除此电台？')) { setStations(prev => prev.filter(i => i.url !== activeStation.url)); setCurrentView('LIST'); setActiveStation(null); audioRef.current?.pause(); } }}><Icons.Trash className="w-6 h-6" /></button>
                     </div>
-                    <div className="flex-1 flex flex-col items-center justify-center gap-12">
-                        <div className={`w-72 h-72 shadow-[0_40px_80px_rgba(0,0,0,0.15)] border-[10px] flex items-center justify-center overflow-hidden transform transition-all duration-1000 ${isPlaying ? 'scale-100' : 'scale-90 opacity-40'} ${settings.iconStyle === 'circle' ? 'rounded-full' : 'rounded-[64px]'}`} style={{ borderColor: palette.container, backgroundColor: palette.container }}>
-                            {activeStation.iconUrl ? <img src={activeStation.iconUrl} className="w-full h-full object-cover" /> : <Icons.Radio className="w-28 h-28 opacity-5" />}
+                    <div className="flex-1 flex flex-col items-center justify-center gap-10">
+                        <div className={`w-64 h-64 shadow-[0_40px_80px_rgba(0,0,0,0.15)] border-[8px] flex items-center justify-center overflow-hidden transform transition-all duration-1000 ${isPlaying ? 'scale-100' : 'scale-90 opacity-40'} ${settings.iconStyle === 'circle' ? 'rounded-full' : 'rounded-[56px]'}`} style={{ borderColor: palette.container, backgroundColor: palette.container }}>
+                            {activeStation.iconUrl ? <img src={activeStation.iconUrl} className="w-full h-full object-cover" /> : <Icons.Radio className="w-24 h-24 opacity-5" />}
                         </div>
                         <div className="text-center space-y-3 px-4">
                             <h2 className="text-3xl font-black leading-tight truncate max-w-[320px]">{activeStation.name}</h2>
                             <p className="text-[11px] font-mono opacity-40 truncate max-w-[240px] mx-auto uppercase tracking-tighter">{activeStation.url}</p>
                         </div>
                         <div className="flex items-center gap-8">
-                            <button onClick={() => { isPlaying ? audioRef.current?.pause() : audioRef.current?.play(); if (navigator.vibrate) navigator.vibrate(10); }} className="w-28 h-28 rounded-full flex items-center justify-center shadow-2xl active:scale-90 transition-all" style={{ backgroundColor: palette.active || palette.primary, color: '#FFFFFF' }}>
-                                <div className="flex items-center justify-center w-full h-full">{isPlaying ? <Icons.Pause className="w-12 h-12" /> : <Icons.Play className="w-12 h-12 ml-2" />}</div>
+                            <button onClick={() => { isPlaying ? audioRef.current?.pause() : audioRef.current?.play(); if (navigator.vibrate) navigator.vibrate(10); }} className="w-24 h-24 rounded-full flex items-center justify-center shadow-2xl active:scale-90 transition-all" style={{ backgroundColor: palette.active || palette.primary, color: '#FFFFFF' }}>
+                                <div className="flex items-center justify-center w-full h-full">{isPlaying ? <Icons.Pause className="w-11 h-11" /> : <Icons.Play className="w-11 h-11 ml-1.5" />}</div>
                             </button>
                         </div>
-                        <div className="w-full max-w-[240px] flex items-center gap-5 opacity-50">
-                            <Icons.Volume2 className="w-6 h-6" />
-                            <input type="range" min="0" max="1" step="0.01" value={volume} onChange={e => setVolume(parseFloat(e.target.value))} className="flex-1 h-1.5 rounded-full appearance-none bg-current opacity-20 cursor-pointer" />
+                        <div className="w-full max-w-[220px] flex items-center gap-5 opacity-50">
+                            <Icons.Volume2 className="w-5 h-5" />
+                            <input type="range" min="0" max="1" step="0.01" value={volume} onChange={e => setVolume(parseFloat(e.target.value))} className="flex-1 h-1 rounded-full appearance-none bg-current opacity-20 cursor-pointer" />
                         </div>
                     </div>
                 </div>
@@ -785,7 +824,7 @@ const App = () => {
                         </div>
                         <div className="grid grid-cols-3 gap-4">
                             {[15, 30, 45, 60, 120, 0].map(m => (
-                                <button key={m} onClick={() => { setSleepTimer(m || null); setIsTimerDialogOpen(false); if (navigator.vibrate) navigator.vibrate(5); }} className={`h-16 rounded-[24px] font-black transition-all active:scale-95 ${sleepTimer === m && m !== 0 ? 'shadow-lg' : ''}`} style={{ backgroundColor: sleepTimer === m && m !== 0 ? (palette.active || palette.primary) : inputBg_App, color: sleepTimer === m && m !== 0 ? '#FFFFFF' : palette.primary }}>{m === 0 ? 'OFF' : `${m}m`}</button>
+                                <button key={m} onClick={() => { setSleepTimer(m || null); setIsTimerDialogOpen(false); if (navigator.vibrate) navigator.vibrate(5); }} className={`h-14 rounded-[20px] font-black text-sm transition-all active:scale-95 ${sleepTimer === m && m !== 0 ? 'shadow-lg' : ''}`} style={{ backgroundColor: sleepTimer === m && m !== 0 ? (palette.active || palette.primary) : inputBg_App, color: sleepTimer === m && m !== 0 ? '#FFFFFF' : palette.primary }}>{m === 0 ? 'OFF' : `${m}m`}</button>
                             ))}
                         </div>
                         <button onClick={() => setIsTimerDialogOpen(false)} className="w-full py-4 text-[10px] font-black uppercase tracking-[0.4em] opacity-30">Dismiss</button>
