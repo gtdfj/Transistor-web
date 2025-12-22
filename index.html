@@ -26,8 +26,10 @@
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         @keyframes slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
         @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes pulse-slow { 0%, 100% { opacity: 0.3; transform: scale(1); } 50% { opacity: 0.6; transform: scale(1.05); } }
         .animate-slide-up { animation: slide-up 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .animate-fade-in { animation: fade-in 0.2s ease-out; }
+        .animate-pulse-slow { animation: pulse-slow 4s infinite ease-in-out; }
         
         input[type=range]::-webkit-slider-thumb {
             -webkit-appearance: none;
@@ -183,7 +185,6 @@
         const StationItem = ({ station, isActive, isPlaying, iconStyle, palette, onPlay, onToggleFavorite, onDelete, onLongPress }) => {
             const [offsetX, setOffsetX] = useState(0);
             const [isSwiping, setIsSwiping] = useState(false);
-            const [isLongPressing, setIsLongPressing] = useState(false);
             const startX = useRef(0);
             const startY = useRef(0);
             const isVerticalScroll = useRef(false);
@@ -198,9 +199,7 @@
                 isVerticalScroll.current = false;
                 hasVibratedRef.current = false;
 
-                // Long Press Detection
                 longPressTimer.current = setTimeout(() => {
-                    setIsLongPressing(true);
                     if (navigator.vibrate) navigator.vibrate(50);
                     onLongPress(station);
                 }, 600);
@@ -212,7 +211,6 @@
                 const diffX = currentX - startX.current;
                 const diffY = currentY - startY.current;
 
-                // If user moves too much, cancel long press
                 if (Math.abs(diffX) > 10 || Math.abs(diffY) > 10) {
                     if (longPressTimer.current) {
                         clearTimeout(longPressTimer.current);
@@ -241,7 +239,6 @@
 
             const handleTouchEnd = () => {
                 setIsSwiping(false);
-                setIsLongPressing(false);
                 if (longPressTimer.current) {
                     clearTimeout(longPressTimer.current);
                     longPressTimer.current = null;
@@ -282,7 +279,7 @@
                         onTouchStart={handleTouchStart}
                         onTouchMove={handleTouchMove}
                         onTouchEnd={handleTouchEnd}
-                        onClick={() => Math.abs(offsetX) < 10 && !longPressTimer.current === null && onPlay(station)}
+                        onClick={() => Math.abs(offsetX) < 10 && onPlay(station)}
                         className={`relative flex items-center gap-4 px-4 py-3 cursor-pointer group select-none border-b transition-colors ${isActive ? 'bg-black/5' : ''}`}
                     >
                         <div className="tap-highlight" />
@@ -314,68 +311,183 @@
         };
 
         const AddView = ({ addStation, addStations, searchStations, isSearching, searchResults, setView, palette }) => {
-            const [tab, setTab] = useState('search');
+            const [tabIdx, setTabIdx] = useState(0);
             const [form, setForm] = useState({ name: '', url: '' });
             const [query, setQuery] = useState('');
             const [bulkText, setBulkText] = useState('');
-            const containerRef = useRef(null);
             
+            // Sliding Gestures
+            const [dragX, setDragX] = useState(0);
+            const [isDragging, setIsDragging] = useState(false);
+            const startX = useRef(0);
+            const startY = useRef(0);
+            const isHorizontalScroll = useRef(false);
+
             const inputBg = palette.surface === '#000000' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
             const cardBg = palette.surface === '#000000' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)';
             const pillBg = palette.surface === '#000000' ? '#2c2c2e' : '#FFFFFF';
 
+            const handleTouchStart = (e) => {
+                startX.current = e.touches[0].clientX;
+                startY.current = e.touches[0].clientY;
+                setIsDragging(true);
+                isHorizontalScroll.current = false;
+            };
+
+            const handleTouchMove = (e) => {
+                const currentX = e.touches[0].clientX;
+                const currentY = e.touches[0].clientY;
+                const diffX = currentX - startX.current;
+                const diffY = currentY - startY.current;
+
+                if (!isHorizontalScroll.current) {
+                    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 10) {
+                        isHorizontalScroll.current = true;
+                    } else if (Math.abs(diffY) > 10) {
+                        setIsDragging(false);
+                        return;
+                    }
+                }
+
+                if (isHorizontalScroll.current) {
+                    // Friction when sliding beyond bounds
+                    let offset = diffX;
+                    if ((tabIdx === 0 && diffX > 0) || (tabIdx === TABS.length - 1 && diffX < 0)) {
+                        offset = diffX * 0.3;
+                    }
+                    setDragX(offset);
+                    e.preventDefault();
+                }
+            };
+
+            const handleTouchEnd = () => {
+                setIsDragging(false);
+                if (isHorizontalScroll.current) {
+                    const threshold = window.innerWidth / 3;
+                    if (dragX < -threshold && tabIdx < TABS.length - 1) {
+                        setTabIdx(t => t + 1);
+                        if(navigator.vibrate) navigator.vibrate(10);
+                    } else if (dragX > threshold && tabIdx > 0) {
+                        setTabIdx(t => t - 1);
+                        if(navigator.vibrate) navigator.vibrate(10);
+                    }
+                }
+                setDragX(0);
+            };
+
+            // Calculate translations to sync header indicator and content
+            // Fix: Normalize by TABS.length because container width is TABS.length * 100%
+            const pageRatio = 100 / TABS.length;
+            const contentTranslateX = -(tabIdx * pageRatio) + (dragX / window.innerWidth * pageRatio);
+            
+            // Sync Header Indicator
+            const ratio = -(dragX / window.innerWidth);
+            const currentPos = tabIdx + ratio;
+            // Exact calculation using css calc to match flex layout with padding
+            // Container padding = 0.375rem (1.5 * 0.25rem). Total horizontal padding = 0.75rem.
+            const indicatorWidth = `calc((100% - 0.75rem) / ${TABS.length})`;
+            const indicatorLeft = `calc(0.375rem + ((100% - 0.75rem) / ${TABS.length}) * ${currentPos})`;
+
+            const childPageStyle = { width: `${100 / TABS.length}%` };
+
             return (
-                <div ref={containerRef} className="flex-1 flex flex-col p-4 pt-2 space-y-6 animate-fade-in select-none overflow-hidden min-h-0" style={{ backgroundColor: palette.surface }}>
+                <div className="flex-1 flex flex-col p-4 pt-2 space-y-6 animate-fade-in select-none overflow-hidden min-h-0" style={{ backgroundColor: palette.surface }}>
+                    {/* Tab Header with Fully Synced Indicator */}
                     <div className="flex p-1.5 rounded-[32px] relative z-10 overflow-hidden flex-shrink-0 backdrop-blur-md shadow-inner" style={{ backgroundColor: inputBg }}>
-                        {TABS.map(t => (
-                            <button key={t} onClick={() => setTab(t)} className={`flex-1 py-2.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all relative z-20 ${tab === t ? 'opacity-100 scale-105' : 'opacity-30 scale-100'}`} style={{ color: palette.primary, backgroundColor: tab === t ? pillBg : 'transparent' }}>
+                        <div 
+                            className="absolute h-[calc(100%-0.75rem)] top-1.5 rounded-full shadow-sm z-0"
+                            style={{ 
+                                backgroundColor: pillBg, 
+                                width: indicatorWidth,
+                                left: indicatorLeft,
+                                transition: isDragging ? 'none' : 'left 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.15)'
+                            }}
+                        />
+                        {TABS.map((t, idx) => (
+                            <button key={t} onClick={() => setTabIdx(idx)} className={`flex-1 py-2.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all relative z-20 ${tabIdx === idx ? 'opacity-100' : 'opacity-30'}`} style={{ color: palette.primary }}>
                                 {t === 'search' ? '探索' : t === 'manual' ? '键入' : '频谱'}
                             </button>
                         ))}
                     </div>
                     
-                    <div className="flex-1 overflow-hidden relative min-h-0">
-                        <div className="h-full">
-                            {tab === 'search' && (
-                                <div className="h-full flex flex-col space-y-5">
-                                    <div className="relative flex-shrink-0 group">
-                                        <input type="text" placeholder="调谐全球电台频率..." className="w-full h-14 rounded-[24px] pl-14 pr-32 focus:outline-none border-2 text-[15px] shadow-sm focus:border-primary/20" style={{ backgroundColor: inputBg, color: palette.primary, borderColor: 'transparent' }} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && searchStations(query)} />
-                                        <Icons.Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 opacity-40" />
-                                        <button onClick={() => searchStations(query)} className="absolute right-1.5 top-1/2 -translate-y-1/2 px-6 h-12 rounded-[20px] text-[14px] font-bold uppercase tracking-widest active:scale-95 transition-all shadow-lg" style={{ backgroundColor: palette.active || palette.primary, color: '#FFFFFF' }}>调谐</button>
-                                    </div>
-                                    <div className="flex-1 space-y-3 overflow-y-auto no-scrollbar pb-32 px-1">
-                                        {isSearching ? <div className="text-center py-20 opacity-40 animate-pulse">正在扫描信号谱...</div> : 
-                                            searchResults.map(r => (
-                                                <div key={r.url} onClick={() => addStation(r)} className="flex items-center gap-4 p-4 rounded-[24px] shadow-sm active:scale-[0.98] transition-all" style={{ backgroundColor: cardBg }}>
-                                                    <div className="w-12 h-12 rounded-xl overflow-hidden bg-white/5 flex-shrink-0 border" style={{borderColor: palette.border}}>
-                                                        {r.iconUrl ? <img src={r.iconUrl} className="w-full h-full object-cover" /> : <Icons.Radio className="w-full h-full p-3 opacity-10" />}
-                                                    </div>
-                                                    <div className="flex-1 truncate font-bold text-sm">{r.name}</div>
-                                                    <Icons.Plus className="w-5 h-5 opacity-40" />
-                                                </div>
-                                            ))
-                                        }
-                                        {!isSearching && searchResults.length === 0 && query && (
-                                            <div className="text-center py-20 opacity-20">未发现信号</div>
-                                        )}
-                                    </div>
+                    {/* Sliding Content Container */}
+                    <div 
+                        className="flex-1 relative overflow-hidden h-full"
+                        style={{ touchAction: 'pan-y' }}
+                        onTouchStart={handleTouchStart}
+                        onTouchMove={handleTouchMove}
+                        onTouchEnd={handleTouchEnd}
+                    >
+                        <div 
+                            className="flex h-full"
+                            style={{ 
+                                transform: `translateX(${contentTranslateX}%)`,
+                                transition: isDragging ? 'none' : 'transform 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.15)',
+                                width: `${TABS.length * 100}%`
+                            }}
+                        >
+                            {/* Page 1: Search */}
+                            <div className="h-full flex flex-col space-y-5 px-1" style={childPageStyle}>
+                                <div className="relative flex-shrink-0 group">
+                                    <input type="text" placeholder="调谐全球电台频率..." className="w-full h-14 rounded-[24px] pl-14 pr-32 focus:outline-none border-2 text-[15px] shadow-sm focus:border-primary/20" style={{ backgroundColor: inputBg, color: palette.primary, borderColor: 'transparent' }} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && searchStations(query)} />
+                                    <Icons.Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 opacity-40" />
+                                    <button onClick={() => searchStations(query)} className="absolute right-1.5 top-1/2 -translate-y-1/2 px-6 h-12 rounded-[20px] text-[14px] font-bold uppercase tracking-widest active:scale-95 transition-all shadow-lg" style={{ backgroundColor: palette.active || palette.primary, color: '#FFFFFF' }}>调谐</button>
                                 </div>
-                            )}
-                            {tab === 'manual' && (
+                                <div className="flex-1 space-y-3 overflow-y-auto no-scrollbar pb-32">
+                                    {isSearching ? (
+                                        <div className="flex flex-col items-center justify-center py-20 gap-4">
+                                            <div className="w-12 h-12 border-4 border-current border-t-transparent rounded-full animate-spin opacity-20" />
+                                            <span className="text-[10px] font-black uppercase tracking-widest opacity-40">正在扫描信号谱...</span>
+                                        </div>
+                                    ) : searchResults.length > 0 ? (
+                                        searchResults.map(r => (
+                                            <div key={r.url} onClick={() => addStation(r)} className="flex items-center gap-4 p-4 rounded-[24px] shadow-sm active:scale-[0.98] transition-all" style={{ backgroundColor: cardBg }}>
+                                                <div className="w-12 h-12 rounded-xl overflow-hidden bg-white/5 flex-shrink-0 border" style={{borderColor: palette.border}}>
+                                                    {r.iconUrl ? <img src={r.iconUrl} className="w-full h-full object-cover" /> : <Icons.Radio className="w-full h-full p-3 opacity-10" />}
+                                                </div>
+                                                <div className="flex-1 truncate font-bold text-sm">{r.name}</div>
+                                                <Icons.Plus className="w-5 h-5 opacity-40" />
+                                            </div>
+                                        ))
+                                    ) : query ? (
+                                        <div className="flex flex-col items-center justify-center py-20 opacity-20 space-y-4">
+                                            <Icons.AlertTriangle className="w-12 h-12" />
+                                            <span className="text-xs font-black uppercase tracking-widest">未在该频段发现信号</span>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center py-24 opacity-10 space-y-4">
+                                            <Icons.Search className="w-16 h-16" />
+                                            <span className="text-[10px] font-black uppercase tracking-widest">输入电台名称开始探索</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Page 2: Manual */}
+                            <div className="h-full px-1" style={childPageStyle}>
                                 <div className="space-y-6">
-                                    <div className="p-6 rounded-[32px] border space-y-4" style={{ backgroundColor: cardBg, borderColor: palette.border }}>
-                                        <input placeholder="电台名称" className="w-full h-12 rounded-xl px-4 focus:outline-none border-2 focus:border-primary/40" style={{ backgroundColor: inputBg, color: palette.primary, borderColor: 'transparent' }} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
-                                        <input placeholder="流媒体 URL" className="w-full h-12 rounded-xl px-4 focus:outline-none border-2 focus:border-primary/40 font-mono text-xs" style={{ backgroundColor: inputBg, color: palette.primary, borderColor: 'transparent' }} value={form.url} onChange={e => setForm({ ...form, url: e.target.value })} />
+                                    <div className="p-6 rounded-[32px] border space-y-4 shadow-sm" style={{ backgroundColor: cardBg, borderColor: palette.border }}>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-bold uppercase opacity-30 ml-2">电台标识</label>
+                                            <input placeholder="电台名称" className="w-full h-12 rounded-xl px-4 focus:outline-none border-2 focus:border-primary/40" style={{ backgroundColor: inputBg, color: palette.primary, borderColor: 'transparent' }} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-bold uppercase opacity-30 ml-2">信号源 (M3U8/MP3/AAC)</label>
+                                            <input placeholder="流媒体 URL" className="w-full h-12 rounded-xl px-4 focus:outline-none border-2 focus:border-primary/40 font-mono text-xs" style={{ backgroundColor: inputBg, color: palette.primary, borderColor: 'transparent' }} value={form.url} onChange={e => setForm({ ...form, url: e.target.value })} />
+                                        </div>
                                     </div>
                                     <button onClick={() => form.url && addStation(form)} className="w-full h-14 rounded-[28px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all" style={{ backgroundColor: palette.active || palette.primary, color: '#FFFFFF' }}>建立连接</button>
                                 </div>
-                            )}
-                            {tab === 'import' && (
-                                <div className="h-full flex flex-col space-y-4">
+                            </div>
+
+                            {/* Page 3: Import */}
+                            <div className="h-full flex flex-col space-y-4 px-1" style={childPageStyle}>
+                                <div className="flex-1 flex flex-col p-6 rounded-[32px] border shadow-sm space-y-4" style={{ backgroundColor: cardBg, borderColor: palette.border }}>
+                                    <div className="text-[10px] font-bold uppercase opacity-30">信号频谱代码 (#EXTM3U)</div>
                                     <textarea placeholder="#EXTM3U 内容..." className="w-full flex-1 rounded-[24px] p-5 focus:outline-none font-mono text-xs resize-none border-2 focus:border-primary/40" style={{ backgroundColor: inputBg, color: palette.primary, borderColor: 'transparent' }} value={bulkText} onChange={e => setBulkText(e.target.value)} />
-                                    <button onClick={() => { const p = parseM3U(bulkText); if(p.length) addStations(p); }} className="w-full h-14 rounded-[28px] font-black uppercase tracking-widest shadow-lg" style={{ backgroundColor: palette.active || palette.primary, color: '#FFFFFF' }}>批量解析</button>
                                 </div>
-                            )}
+                                <button onClick={() => { const p = parseM3U(bulkText); if(p.length) addStations(p); }} className="w-full h-14 rounded-[28px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all" style={{ backgroundColor: palette.active || palette.primary, color: '#FFFFFF' }}>批量解析</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -485,7 +597,6 @@
                         url: station.url
                     }).catch(() => {});
                 } else {
-                    // Fallback to copy to clipboard
                     navigator.clipboard.writeText(station.url).then(() => {
                         alert('播放链接已复制到剪贴板');
                     });
@@ -518,7 +629,7 @@
             if (!hasAgreedPrivacy) {
                 return (
                     <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl">
-                        <div className="w-full max-w-md bg-white rounded-[40px] p-10 text-center space-y-6">
+                        <div className="w-full max-md bg-white rounded-[40px] p-10 text-center space-y-6">
                             <Icons.Shield className="w-16 h-16 text-purple-600 mx-auto" />
                             <h2 className="text-2xl font-black text-slate-900 tracking-tight">隐私政策</h2>
                             <p className="text-sm text-slate-500 leading-relaxed">感谢使用 Transistor。请阅读并同意政策以开启您的收音机之旅。</p>
@@ -549,32 +660,48 @@
                     <main className="flex-1 overflow-y-auto no-scrollbar relative min-h-0">
                         {currentView === 'LIST' && (
                             <div className="flex flex-col pb-32">
-                                {stations.length > 0 && (
-                                    <div className="p-4 sticky top-0 z-10 border-b backdrop-blur-md" style={{ backgroundColor: palette.surface + 'E6', borderColor: palette.border }}>
-                                        <div className="relative">
-                                            <Icons.Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 opacity-30" />
-                                            <input placeholder="搜索频率..." className="w-full h-11 pl-11 pr-4 rounded-full text-sm focus:outline-none border" style={{ backgroundColor: inputBg_App, borderColor: palette.border, color: palette.primary }} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                                {stations.length > 0 ? (
+                                    <React.Fragment>
+                                        <div className="p-4 sticky top-0 z-10 border-b backdrop-blur-md" style={{ backgroundColor: palette.surface + 'E6', borderColor: palette.border }}>
+                                            <div className="relative">
+                                                <Icons.Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 opacity-30" />
+                                                <input placeholder="搜索频率..." className="w-full h-11 pl-11 pr-4 rounded-full text-sm focus:outline-none border" style={{ backgroundColor: inputBg_App, borderColor: palette.border, color: palette.primary }} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
-                                {filteredList.map(s => (
-                                    <StationItem 
-                                        key={s.addedAt + s.url} 
-                                        station={s} 
-                                        isActive={activeStation?.url === s.url} 
-                                        isPlaying={isPlaying} 
-                                        iconStyle={settings.iconStyle} 
-                                        palette={palette} 
-                                        onPlay={playStation} 
-                                        onToggleFavorite={(st) => setStations(prev => prev.map(item => item.url === st.url ? {...item, isFavorite: !item.isFavorite} : item))} 
-                                        onDelete={(st) => setStations(prev => prev.filter(item => item.url !== st.url))} 
-                                        onLongPress={(st) => setActionMenuStation(st)}
-                                    />
-                                ))}
-                                {stations.length === 0 && (
-                                    <div className="flex flex-col items-center justify-center p-20 text-center space-y-6 opacity-10">
-                                        <Icons.Radio className="w-32 h-32" />
-                                        <div className="font-black uppercase tracking-[0.5em] text-sm">Silence Zone</div>
+                                        {filteredList.map(s => (
+                                            <StationItem 
+                                                key={s.addedAt + s.url} 
+                                                station={s} 
+                                                isActive={activeStation?.url === s.url} 
+                                                isPlaying={isPlaying} 
+                                                iconStyle={settings.iconStyle} 
+                                                palette={palette} 
+                                                onPlay={playStation} 
+                                                onToggleFavorite={(st) => setStations(prev => prev.map(item => item.url === st.url ? {...item, isFavorite: !item.isFavorite} : item))} 
+                                                onDelete={(st) => setStations(prev => prev.filter(item => item.url !== st.url))} 
+                                                onLongPress={(st) => setActionMenuStation(st)}
+                                            />
+                                        ))}
+                                    </React.Fragment>
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center p-8 mt-12 animate-fade-in text-center">
+                                        <div className="w-full max-w-sm rounded-[48px] p-12 flex flex-col items-center shadow-xl border" style={{ backgroundColor: palette.container, borderColor: palette.border }}>
+                                            <div className="relative mb-8">
+                                                <div className="absolute inset-0 bg-current opacity-10 blur-3xl rounded-full scale-150 animate-pulse-slow" />
+                                                <Icons.Radio className="w-24 h-24 relative z-10" />
+                                            </div>
+                                            <h2 className="text-2xl font-black uppercase tracking-tight mb-3">广播静默中</h2>
+                                            <p className="text-sm opacity-40 leading-relaxed mb-10 font-medium">您的电台库目前为空。调谐全球频率或手动接入流媒体信号以开启聆听体验。</p>
+                                            <button 
+                                                onClick={() => setCurrentView('ADD')}
+                                                className="h-16 px-10 rounded-full font-black uppercase tracking-[0.2em] shadow-lg active:scale-95 transition-all text-sm flex items-center gap-3"
+                                                style={{ backgroundColor: palette.active, color: '#FFFFFF' }}
+                                            >
+                                                <Icons.Plus className="w-5 h-5" />
+                                                探索新信号
+                                            </button>
+                                        </div>
+                                        <div className="mt-12 opacity-5 font-black uppercase tracking-[0.6em] text-[9px] select-none">Transistor Standing By</div>
                                     </div>
                                 )}
                             </div>
@@ -640,7 +767,7 @@
                                 </button>
                                 <button onClick={() => { if(confirm('从电台库移除？')) { setStations(p => p.filter(i => i.url !== activeStation.url)); setActiveStation(null); setCurrentView('LIST'); audioRef.current?.pause(); } }} className="p-4 opacity-40 active:scale-110 transition-transform"><Icons.Trash className="w-7 h-7" /></button>
                             </div>
-                            <div className="w-full max-w-xs flex items-center gap-4 opacity-30">
+                            <div className="w-full max-xs flex items-center gap-4 opacity-30">
                                 <Icons.Volume2 className="w-5 h-5" />
                                 <input type="range" min="0" max="1" step="0.01" value={volume} onChange={e => setVolume(parseFloat(e.target.value))} className="flex-1 h-1 rounded-full appearance-none bg-current" />
                             </div>
@@ -648,7 +775,7 @@
                     )}
                     {isTimerDialogOpen && (
                         <div className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-xl p-4 animate-fade-in" onClick={() => setIsTimerDialogOpen(false)}>
-                            <div className="w-full max-w-sm bg-white rounded-[48px] p-8 shadow-2xl space-y-6" style={{backgroundColor: palette.container}} onClick={e => e.stopPropagation()}>
+                            <div className="w-full max-sm bg-white rounded-[48px] p-8 shadow-2xl space-y-6" style={{backgroundColor: palette.container}} onClick={e => e.stopPropagation()}>
                                 <div className="text-center font-black uppercase tracking-widest text-xs opacity-40">自动休眠设置</div>
                                 <div className="grid grid-cols-3 gap-4">
                                     {[15, 30, 45, 60, 120, 0].map(m => (
@@ -701,7 +828,7 @@
                     {/* Edit Dialog */}
                     {editingStation && (
                         <div className="fixed inset-0 z-[500] bg-black/60 backdrop-blur-xl flex items-center justify-center p-6 animate-fade-in" onClick={() => setEditingStation(null)}>
-                            <div className="w-full max-w-sm rounded-[48px] p-10 space-y-8 animate-slide-up shadow-2xl" style={{ backgroundColor: palette.container }} onClick={e => e.stopPropagation()}>
+                            <div className="w-full max-sm rounded-[48px] p-10 space-y-8 animate-slide-up shadow-2xl" style={{ backgroundColor: palette.container }} onClick={e => e.stopPropagation()}>
                                 <div className="text-center font-black uppercase tracking-widest text-xs opacity-40">更新电台信息</div>
                                 <div className="space-y-4">
                                     <div className="space-y-2">
